@@ -1,0 +1,208 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AsistenteVirtual.ViewModels">
+
+    <Style Selector="Label.panelTitle">
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Margin" Value="10,10,10,5"/>
+    </Style>
+
+    <Style Selector="Label.welcomeText">
+        <Setter Property="Foreground" Value="{StaticResource PlaceholderTextBrush}" />
+        <Setter Property="FontSize" Value="36" />
+        <Setter Property="FontFamily" Value="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    
+    <Style Selector="TextBox.inputEditor">
+        <Setter Property="Watermark" Value="Pregunta lo que quieras, ¡Estoy lista!"/>
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="CaretBrush" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="MaxHeight" Value="150" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontFamily" Value="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf" />
+    </Style>
+
+    <Style Selector="Button.imageButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0.1"/>
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Button.inputAreaButton">
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="6" />
+    </Style>
+
+    <Style Selector="Button.historyActionButton">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="6" />
+    </Style>
+
+    <Style Selector="Button.sidePanelButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="FontFamily" Value="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Height" Value="44" />
+    </Style>
+
+    <Style Selector="Button.sidePanelButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBgBrush}" />
+    </Style>
+
+    <Style Selector="Button.accentButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    
+    <Style Selector="Button.accentButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBgBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.linkButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+
+    <Style Selector="Button.linkButton:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="White"/>
+    </Style>
+    
+    <Style Selector="Button.toggleButton:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource HoverBgBrush}" />
+    </Style>
+
+    <Style Selector="Button.toggleButton:pointerover:not(.active) /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource HoverBgBrush}" />
+    </Style>
+
+    <Style Selector="Button.toggleButton.active /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource HoverBgBrush}" />
+    </Style>
+    
+    <Style Selector="Button.toggleButton.active:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ActiveHoverBgBrush}" />
+    </Style>
+
+    <Style Selector="Border.inputBorder">
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}" />
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Padding" Value="5" />
+        <Setter Property="MinHeight" Value="50" />
+        <Setter Property="VerticalAlignment" Value="Bottom" />
+    </Style>
+
+    <Style Selector="Border.overlayBorder">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Width" Value="600" />
+        <Setter Property="MinHeight" Value="300" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Background">
+            <SolidColorBrush Color="{StaticResource ColorDarkBgSecondary}"/>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.subscriptionPlanBorder">
+        <Setter Property="Background" Value="#10FFFFFF" />
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="20" />
+    </Style>
+
+    <Style Selector="Border.toggleSwitchContainer">
+        <Setter Property="Background" Value="#2E2E2E"/>
+        <Setter Property="CornerRadius" Value="15"/>
+        <Setter Property="Padding" Value="3"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}"/>
+    </Style>
+
+    <Style Selector="Border.toggleSwitchSlider">
+        <Setter Property="Background" Value="{StaticResource HoverBgBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <IntegerTransition Property="Grid.Column" Duration="0.2" Easing="CubicEaseOut"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <Style Selector="Button.toggleSwitchButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="20,8"/>
+    </Style>
+    
+    <Style Selector="Button.toggleSwitchButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.loginButton">
+        <Setter Property="Width" Value="300"/>
+    </Style>
+
+    <Style Selector="Border.authInputContainer">
+        <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}" />
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="{StaticResource ColorDarkBgSecondary}" />
+    </Style>
+
+    <Style Selector="TextBox.authInput">
+        <Setter Property="Foreground" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="CaretBrush" Value="{StaticResource TextColorBrush}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="MinHeight" Value="40"/>
+        <Setter Property="FontFamily" Value="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf" />
+    </Style>
+
+    <Style Selector="Border.separatorLine">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource BorderColorBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    
+</Styles>

@@ -1,0 +1,17 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="using:AsistenteVirtual.Converters">
+    <Style>
+        <Style.Resources>
+            <converters:BooleanToErrorBackgroundConverter x:Key="BooleanToErrorBackgroundConverter"/>
+            <converters:BooleanToErrorBorderConverter x:Key="BooleanToErrorBorderConverter"/>
+            <converters:BooleanToVisibilityConverterInverted x:Key="BooleanToVisibilityConverterInverted"/>
+            <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <converters:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
+            <converters:RoleToBackgroundConverter x:Key="RoleToBackgroundConverter"/>
+            <converters:SettingsTabToIndexConverter x:Key="SettingsTabToIndexConverter"/>
+            <converters:UpdateHistoryTabToIndexConverter x:Key="UpdateHistoryTabToIndexConverter"/>
+        </Style.Resources>
+    </Style>
+</Styles>

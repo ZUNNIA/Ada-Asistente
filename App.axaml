@@ -1,0 +1,11 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:AsistenteVirtual"
+             x:Class="AsistenteVirtual.App">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Ada/Resources/Styles/Colors.axaml"/>
+        <StyleInclude Source="avares://Ada/Resources/Styles/Converters.axaml"/>
+        <StyleInclude Source="avares://Ada/Resources/Styles/Styles.axaml"/>
+    </Application.Styles>
+</Application>

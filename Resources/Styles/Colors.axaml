@@ -1,0 +1,23 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style>
+        <Style.Resources>
+            <Color x:Key="ColorDarkBgPrimary">#00171f</Color>
+            <Color x:Key="ColorDarkBgSecondary">#051923</Color>
+            <Color x:Key="ColorGrayBorder">#808080</Color>
+            <Color x:Key="ColorPlaceholder">#8da9b6</Color>
+            <Color x:Key="ColorButtonHover">#383b4b</Color>
+            <Color x:Key="ColorSystemMessageBg">#282828</Color>
+            <Color x:Key="ColorWhite">#8da9b6</Color>
+
+            <SolidColorBrush x:Key="PrimaryDarkBgBrush" Color="#00171f"/>
+            <SolidColorBrush x:Key="TextColorBrush" Color="#8da9b6"/>
+            <SolidColorBrush x:Key="BorderColorBrush" Color="#808080"/>
+            <SolidColorBrush x:Key="TransparentBrush" Color="Transparent"/>
+            <SolidColorBrush x:Key="HoverBgBrush" Color="#383b4b"/>
+            <SolidColorBrush x:Key="ActiveHoverBgBrush" Color="#a2a2a2ff"/>
+            <SolidColorBrush x:Key="PlaceholderTextBrush" Color="#808080"/>
+            <SolidColorBrush x:Key="SystemMessageBackgroundBrush" Color="#282828"/>
+        </Style.Resources>
+    </Style>
+</Styles>
