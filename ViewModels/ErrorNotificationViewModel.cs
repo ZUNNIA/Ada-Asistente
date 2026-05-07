@@ -1,56 +1,63 @@
-﻿using System;
+﻿using Avalonia.Controls;
+using System;
 using System.Windows.Input;
+using AsistenteVirtual.Commands;
 
 namespace AsistenteVirtual.ViewModels
 {
     /// <summary>
-    /// ViewModel para una notificación de error o advertencia que se muestra en la UI.
-    /// Contiene propiedades para el mensaje, severidad y acciones reintentables.
+    /// ViewModel que representa una notificación visual en el sistema, ya sea un error crítico o una advertencia.
     /// </summary>
+    /// <remarks>
+    /// Encapsula la lógica de visualización, comandos de cierre y la capacidad de copiar trazas de error al portapapeles.
+    /// </remarks>
     public partial class ErrorNotificationViewModel : ViewModelBase
     {
-        // --- Campos Privados ---
         private string _message = string.Empty;
         private bool _isCritical;
-        private bool _isRetriable;
-        private bool _showProgressBar;
-        private ICommand? _retryCommand;
+        private string _detailsToCopy = string.Empty;
+        private ICommand? _primaryActionCommand;
+        private string _primaryActionText = string.Empty;
 
-        // --- Propiedades Públicas ---
-
-        /// <summary>
-        /// Identificador único para esta instancia de notificación, para poder gestionarla en una colección.
-        /// </summary>
+        /// Obtiene el identificador único universal para esta instancia de notificación.
         public Guid Id { get; } = Guid.NewGuid();
 
-        /// <summary>
-        /// Obtiene o establece el mensaje de la notificación.
-        /// </summary>
+        /// Obtiene o establece el mensaje descriptivo que verá el usuario.
         public string Message { get => _message; set => SetProperty(ref _message, value); }
 
-        /// <summary>
-        /// Obtiene o establece si la notificación es de naturaleza crítica (error) o no (advertencia).
-        /// Afecta al estilo visual de la notificación en la UI.
-        /// </summary>
+        /// Obtiene o establece si la notificación representa un fallo crítico que requiere atención inmediata.
         public bool IsCritical { get => _isCritical; set => SetProperty(ref _isCritical, value); }
 
-        /// <summary>
-        /// Obtiene o establece si la notificación presenta al usuario una acción que se puede reintentar.
-        /// </summary>
-        public bool IsRetriable { get => _isRetriable; set => SetProperty(ref _isRetriable, value); }
+        /// Obtiene o establece la información técnica (ej. StackTrace) que puede ser copiada por el usuario.
+        public string DetailsToCopy { get => _detailsToCopy; set => SetProperty(ref _detailsToCopy, value); }
+
+        /// Obtiene o establece el comando de acción principal asociado a la notificación.
+        public ICommand? PrimaryActionCommand { get => _primaryActionCommand; set => SetProperty(ref _primaryActionCommand, value); }
+
+        /// Obtiene o establece el texto del botón para la acción principal.
+        public string PrimaryActionText { get => _primaryActionText; set => SetProperty(ref _primaryActionText, value); }
+
+        /// Indica si la notificación tiene detalles técnicos que permiten habilitar el botón de copiado.
+        public bool CanCopyDetails => IsCritical && !string.IsNullOrWhiteSpace(DetailsToCopy);
+
+        /// Comando para eliminar la notificación de la colección activa en la UI.
+        public ICommand? CloseCommand { get; set; }
+
+        /// Comando interno para gestionar la copia de detalles al portapapeles del sistema.
+        public ICommand CopyDetailsCommand { get; }
 
         /// <summary>
-        /// Obtiene o establece si se debe mostrar una barra de progreso, útil durante un reintento de conexión.
+        /// Inicializa una nueva instancia de <see cref="ErrorNotificationViewModel"/> y configura el comando de portapapeles.
         /// </summary>
-        public bool ShowProgressBar { get => _showProgressBar; set => SetProperty(ref _showProgressBar, value); }
-
-        /// <summary>
-        /// Obtiene o establece el comando que se ejecutará cuando el usuario solicite un reintento.
-        /// </summary>
-        public ICommand? RetryCommand
+        public ErrorNotificationViewModel()
         {
-            get => _retryCommand;
-            set => SetProperty(ref _retryCommand, value);
+            CopyDetailsCommand = new RelayCommand(async _ =>
+            {
+                if (TopLevel.GetTopLevel(null)?.Clipboard is { } clipboard && !string.IsNullOrWhiteSpace(DetailsToCopy))
+                {
+                    await clipboard.SetTextAsync(DetailsToCopy);
+                }
+            });
         }
     }
 }

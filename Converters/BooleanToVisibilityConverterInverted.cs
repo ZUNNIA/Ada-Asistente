@@ -5,25 +5,28 @@ using Avalonia.Data.Converters;
 namespace AsistenteVirtual.Converters
 {
     /// <summary>
-    /// Convierte un valor booleano a su valor booleano inverso para controlar la visibilidad en Avalonia.
-    /// true -> false (oculto)
-    /// false -> true (visible)
+    /// Invierte un valor booleano para controlar la visibilidad o disponibilidad de elementos en la UI.
+    /// Útil para ocultar elementos cuando una condición es verdadera.
     /// </summary>
     public class BooleanToVisibilityConverterInverted : IValueConverter
     {
         /// <summary>
-        /// Convierte un booleano a su valor opuesto.
+        /// Niega el valor lógico de entrada.
         /// </summary>
-        /// <returns>False si el valor es true; de lo contrario, true.</returns>
+        /// <param name="value">Valor booleano de origen.</param>
+        /// <param name="targetType">Tipo de destino.</param>
+        /// <param name="parameter">Parámetro adicional.</param>
+        /// <param name="culture">Cultura.</param>
+        /// <returns>True si la entrada es False; False si la entrada es True.</returns>
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             return !(value is bool boolValue && boolValue);
         }
 
         /// <summary>
-        /// Convierte un booleano a su valor opuesto.
+        /// Vuelve a invertir el valor para recuperar el estado original.
         /// </summary>
-        /// <returns>False si el valor es true; de lo contrario, true.</returns>
+        /// <returns>El valor booleano invertido.</returns>
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             return !(value is bool boolValue && boolValue);

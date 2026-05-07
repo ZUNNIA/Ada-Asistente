@@ -1,55 +1,80 @@
 ﻿using Avalonia;
-using System;
 using Serilog;
+using Serilog.Events;
+using System;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
 
 namespace AsistenteVirtual
 {
     /// <summary>
-    /// Clase principal de la aplicación.
+    /// Punto de entrada estático para la ejecución del proceso de la aplicación.
     /// </summary>
-    internal class Program
+    internal sealed class Program
     {
-        // El punto de entrada principal de la aplicación.
+        /// <summary>
+        /// Método principal que arranca la aplicación.
+        /// </summary>
+        /// <param name="args">Argumentos de línea de comandos.</param>
         [STAThread]
         public static void Main(string[] args)
         {
-            // --- CONFIGURACIÓN DE SERILOG ---   
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string logDirectory = System.IO.Path.Combine(appDataPath, "Ada", "Logs");
-            string logFilePath = System.IO.Path.Combine(logDirectory, "AsistenteLog_.txt");
+            ConfigureLogging();
 
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information() // Captura todos los niveles de severidad.
-                .WriteTo.Console()    // Escribe en la consola estándar (muy útil en Linux).
-                .WriteTo.File(logFilePath,
-                              rollingInterval: RollingInterval.Day,
-                              retainedFileCountLimit: 7,
-                              // Forza la escritura al disco periódicamente para no perder logs.
-                              flushToDiskInterval: TimeSpan.FromSeconds(1), 
-                              shared: true)
-                .CreateLogger();
-            
-            // Se envuelve la ejecución de la app en un bloque try/catch/finally.
             try
             {
-                Log.Information("================= INICIO DE LA APP =================");
-                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                Log.Information("--------------------------------------------------");
+                Log.Information("Arrancando Ada Asistente. Versión: {Version}",
+                    Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Desconocida");
+                Log.Information("--------------------------------------------------");
+
+                _ = BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             }
             catch (Exception ex)
             {
-                // Captura cualquier error fatal que pueda ocurrir durante el arranque.
-                Log.Fatal(ex, "La aplicación ha terminado de forma inesperada.");
+                Log.Fatal(ex, "La aplicación terminó inesperadamente debido a un error crítico.");
             }
             finally
             {
-                // Asegura que todos los logs en buffer se escriban en el archivo antes de cerrar.
                 Log.CloseAndFlush();
             }
         }
-        // Configura y construye la instancia de la aplicación Avalonia.
+
+        /// <summary>
+        /// Configura el motor de logging Serilog con escritura en consola y archivo rotativo.
+        /// </summary>
+        private static void ConfigureLogging()
+        {
+#if DEBUG
+            const LogEventLevel minLevel = LogEventLevel.Debug;
+#else
+            const LogEventLevel minLevel = LogEventLevel.Information;
+#endif
+            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ada", "Logs", "log-.txt");
+
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Is(minLevel)
+                .Enrich.FromLogContext()
+                .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
+                .WriteTo.File(logPath,
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 7,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                    formatProvider: CultureInfo.InvariantCulture)
+                .CreateLogger();
+        }
+
+        /// <summary>
+        /// Configura el constructor de la aplicación Avalonia.
+        /// </summary>
+        /// <returns>Una instancia configurada de <see cref="AppBuilder"/>.</returns>
         public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
-                .WithInterFont();
+        {
+            return AppBuilder.Configure<App>()
+                        .UsePlatformDetect()
+                        .WithInterFont()
+                        .LogToTrace();
+        }
     }
 }

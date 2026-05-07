@@ -1,4 +1,13 @@
+# Archivo .editorconfig principal
+root = true
+
+# Aplicar a todos los archivos C#
 [*.cs]
 
-# CS8123: The tuple element name is ignored because a different name or no name is specified by the assignment target.
-dotnet_diagnostic.CS8123.severity = none
+# Convierte todas las reglas de análisis de "calidad de código" en advertencias
+dotnet_analyzer_diagnostic.category-Performance.severity = warning
+dotnet_analyzer_diagnostic.category-Security.severity = warning
+dotnet_analyzer_diagnostic.category-Usage.severity = warning
+
+# Convierte todas las reglas de "estilo de código" en advertencias
+dotnet_analyzer_diagnostic.category-Style.severity = warning

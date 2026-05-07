@@ -1,474 +1,389 @@
 ﻿using AsistenteVirtual.Models;
+using AsistenteVirtual.Services.Interfaces;
 using GitCredentialManager;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AsistenteVirtual.Services.Implementations
 {
     /// <summary>
-    /// Implementación de IAuthService para la autenticación a través de un backend seguro.
-    /// Gestiona un flujo de autorización que redirige al usuario al navegador para el inicio
-    /// de sesión y recibe un token de sesión (JWT) desde el servidor.
+    /// Servicio de gestión de identidad y seguridad encargado del ciclo de vida de la sesión del usuario.
     /// </summary>
+    /// <remarks>
+    /// Esta clase implementa el flujo de "OAuth 2.0 para aplicaciones de escritorio" mediante un servidor HTTP local (Loopback).
+    /// Además, gestiona la persistencia segura de tokens utilizando el Administrador de Credenciales del Sistema Operativo 
+    /// como prioridad, con un sistema de respaldo (fallback) basado en archivos locales cifrados mediante DPAPI.
+    /// </remarks>
     public class GoogleAuthService : IAuthService
     {
-        // --- Constantes ---
-        // URL del Cloud Run que gestiona el registro y login con correo.
-        private const string AuthServiceBaseUrl = "https://auth-service-802177958692.us-south1.run.app"; 
-        // URL de la función de Cloud Run que inicia el proceso de login.
-        private const string BackendLoginUrl = "https://auth-service-802177958692.us-south1.run.app/login/google";
-        // URL local donde la app escuchará para recibir el token del backend.
+        #region Campos de Configuración y Estado
+
+        private HttpListener? _activeListener;
+        private const string _environment = "staging";
+
+        private static readonly Dictionary<string, string> _authServiceBaseUrls = new()
+        {
+            { "staging", "https://auth-service-staging-24416219573.us-south1.run.app" },
+            { "production", "https://auth-service-production-24416219573.us-south1.run.app" }
+        };
+        private readonly string _authServiceBaseUrl = _authServiceBaseUrls[_environment];
+
         private const string LocalRedirectUri = "http://127.0.0.1:5005/";
         private const string StoreNamespace = "Ada";
         private const string ServiceName = "Ada://session";
         private const string AccountKey = "user_session";
 
-        // --- Campos de Estado ---
-        private readonly HttpClient _httpClient = new();
+        private readonly HttpClient _httpClient;
         private readonly IDataProtectionProvider _protectionProvider;
         private readonly ICredentialStore? _store;
         private readonly bool _useOsCredentialStore;
         private string? _sessionToken;
 
         /// <summary>
-        /// Obtiene el objeto del usuario actualmente autenticado. Es nulo si no hay sesión activa.
+        /// Obtiene el perfil del usuario autenticado actualmente en la sesión.
         /// </summary>
+        /// <value>Instancia de <see cref="User"/> o null si no hay una sesión activa.</value>
         public User? CurrentUser { get; private set; }
 
+        #endregion
+
         /// <summary>
-        /// Inicializa el servicio de autenticación con el proveedor de protección de datos.
+        /// Inicializa una nueva instancia de <see cref="GoogleAuthService"/> y configura el almacenamiento de credenciales.
         /// </summary>
-        /// <param name="protectionProvider">Servicio inyectado para cifrar y descifrar datos.</param>
-        public GoogleAuthService(IDataProtectionProvider protectionProvider)
+        /// <param name="protectionProvider">Proveedor de protección de datos para el cifrado de tokens en disco.</param>
+        /// <param name="httpClient">Cliente HTTP para la comunicación con el microservicio de autenticación.</param>
+        public GoogleAuthService(IDataProtectionProvider protectionProvider, HttpClient httpClient)
         {
             _protectionProvider = protectionProvider;
+            _httpClient = httpClient;
             try
             {
-                // 1. Intenta inicializar el almacén de credenciales del SO.
+                // Intentamos inicializar el Git Credential Manager para usar el almacén nativo (Windows Vault / macOS Keychain)
                 _store = CredentialManager.Create(StoreNamespace);
-                
-                // 2. Hace una "prueba" para ver si realmente funciona.
-                // Esto lanzará la excepción aquí si el almacén no está configurado.
-                _store.Get(ServiceName, "health_check");
-
-                // 3. Si todo va bien, establece la bandera para usarlo.
+                _ = _store.Get(ServiceName, "health_check");
                 _useOsCredentialStore = true;
-                Log.Information("Se utilizará el Administrador de Credenciales nativo del SO.");
+                Log.Information("[Auth] Administrador de credenciales nativo detectado y configurado.");
             }
-            catch (Exception ex) when (ex.Message.Contains("No credential store has been selected"))
+            catch (Exception ex) when (ex.Message.Contains("No credential store") || ex.Message.Contains("git.exe"))
             {
-                // 4. Si la prueba falla, lo registramos y usamos el método de respaldo.
                 _store = null;
                 _useOsCredentialStore = false;
-                Log.Warning("No se encontró un almacén de credenciales nativo del SO. Se recurrirá al almacenamiento de archivos cifrados (seguro).");
-            }
-        }
-        
-        /// <summary>
-        /// Registra un nuevo usuario en el backend usando su nombre, correo y contraseña.
-        /// </summary>
-        /// <param name="username">El nombre de usuario para la nueva cuenta.</param>
-        /// <param name="email">El correo electrónico para la nueva cuenta.</param>
-        /// <param name="password">La contraseña del usuario.</param>
-        /// <returns>Un objeto User con los datos del usuario si el registro es exitoso.</returns>
-        /// <exception cref="Exception">Lanza una excepción con el mensaje de error del backend si el registro falla (ej. "usuario ya existe").</exception>
-        public async Task<User?> RegisterWithEmailAsync(string username, string email, string password)
-        {
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync($"{AuthServiceBaseUrl}/register", new
-                {
-                    username,
-                    email,
-                    password
-                });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    // Si el backend devuelve un error (ej. "usuario ya existe"), lo lee y ejecuta.
-                    string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception(error);
-                }
-
-                // Si el registro es exitoso, el backend devuelve directamente un token.
-                var result = await response.Content.ReadFromJsonAsync<AuthTokenResponse>();
-                if (result?.Token == null) return null;
-
-                _sessionToken = result.Token;
-                CurrentUser = DecodeJwtToUser(_sessionToken);
-
-                if (CurrentUser != null)
-                {
-                    await SaveSessionTokenAsync(_sessionToken);
-                }
-
-                return CurrentUser;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[AuthService] Falló el registro por correo.");
-                // Propaga la excepción para que el ViewModel la muestre al usuario.
-                throw;
+                Log.Warning("[Auth] No se pudo acceder al almacén nativo. Se utilizará cifrado DPAPI local.");
             }
         }
 
-        /// <summary>
-        /// Inicia sesión en el backend usando un identificador (usuario o correo) y contraseña.
-        /// </summary>
-        /// <param name="identifier">El nombre de usuario o correo electrónico.</param>
-        /// <param name="password">La contraseña del usuario.</param>
-        /// <returns>Un objeto User con los datos del usuario si el inicio de sesión es exitoso.</returns>
-        /// <exception cref="Exception">Lanza una excepción con el mensaje de error del backend si el inicio de sesión falla (ej. "credenciales incorrectas").</exception>
-        public async Task<User?> LoginWithEmailAsync(string identifier, string password)
-        {
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync($"{AuthServiceBaseUrl}/login", new
-                {
-                    identifier,
-                    password
-                });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception(error);
-                }
-
-                var result = await response.Content.ReadFromJsonAsync<AuthTokenResponse>();
-                if (result?.Token == null) return null;
-
-                _sessionToken = result.Token;
-                CurrentUser = DecodeJwtToUser(_sessionToken);
-
-                if (CurrentUser != null)
-                {
-                    await SaveSessionTokenAsync(_sessionToken);
-                }
-
-                return CurrentUser;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[AuthService] Falló el inicio de sesión por correo.");
-                throw;
-            }
-        }
+        #region Flujos de Inicio de Sesión
 
         /// <summary>
-        /// Solicita un enlace de restablecimiento de contraseña al backend.
+        /// Orquesta el flujo de inicio de sesión interactivo abriendo el navegador del sistema.
         /// </summary>
-        public async Task RequestPasswordResetAsync(string email)
-        {
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync($"{AuthServiceBaseUrl}/forgot-password", new
-                {
-                    email
-                });
-
-                // Si el backend devuelve un error, lo lanza para que el ViewModel lo maneje.
-                if (!response.IsSuccessStatusCode)
-                {
-                    string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception(error);
-                }
-                // Si tiene éxito, el backend devuelve un 200. No se necesita procesar el cuerpo.
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[AuthService] Falló la solicitud de restablecimiento de contraseña.");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Guarda el token de sesión cifrado en un archivo local.
-        /// </summary>
-        private async Task SaveSessionTokenAsync(string token)
-        {
-            if (_useOsCredentialStore && _store != null)
-            {
-                // Usar el almacén del SO (si está disponible)
-                await Task.Run(() => _store.AddOrUpdate(ServiceName, AccountKey, token));
-                Log.Information("Token guardado de forma segura en el almacén nativo del SO.");
-            }
-            else
-            {
-                // Usar el cifrado de respaldo y guardar en un archivo
-                var protector = _protectionProvider.CreateProtector("Ada.Auth.v1");
-                string protectedToken = protector.Protect(token);
-                await File.WriteAllTextAsync(GetTokenFilePath(), protectedToken);
-                Log.Information("Token cifrado y guardado en archivo local como respaldo.");
-            }
-        }
-
-        /// <summary>
-        /// Inicia el proceso de autenticación interactivo a través del backend.
-        /// 1. Inicia un servidor HTTP local para escuchar la respuesta del backend.
-        /// 2. Abre el navegador del usuario en la URL de login del backend.
-        /// 3. El usuario se autentica en Google y autoriza la aplicación.
-        /// 4. El backend redirige el navegador a la URL local con el token de sesión.
-        /// 5. La aplicación captura el token y finaliza el proceso.
-        /// </summary>
+        /// <returns>El objeto <see cref="User"/> autenticado o null si el proceso fue cancelado.</returns>
+        /// <remarks>
+        /// Levanta un <see cref="HttpListener"/> temporal en el puerto 5005 para capturar el token JWT 
+        /// enviado por el backend tras la redirección de Google.
+        /// </remarks>
+        /// <exception cref="HttpListenerException">Lanzada si el puerto local está ocupado.</exception>
         public async Task<User?> LoginAsync()
         {
-            Log.Information("[AuthService] Iniciando proceso de inicio de sesión vía backend.");
+            Log.Information("[Auth] Iniciando petición de login interactivo.");
+
+            if (_activeListener != null)
+            {
+                try { _activeListener.Abort(); } catch { }
+                _activeListener = null;
+            }
+
             string? receivedToken = null;
 
             try
             {
-                // Inicia un servidor HTTP en un hilo separado para no bloquear la UI.
-                using var listener = new HttpListener();
+                using HttpListener listener = new();
+                _activeListener = listener;
                 listener.Prefixes.Add(LocalRedirectUri);
                 listener.Start();
 
-                // Abre la URL de login del backend en el navegador por defecto del usuario.
-                Process.Start(new ProcessStartInfo(BackendLoginUrl) { UseShellExecute = true });
+                // Lanzar navegador hacia el microservicio de autenticación
+                string backendLoginUrl = $"{_authServiceBaseUrl}/login/google";
+                _ = Process.Start(new ProcessStartInfo(backendLoginUrl) { UseShellExecute = true });
 
-                // Espera de forma asíncrona la petición de vuelta desde el navegador.
+                // Esperamos la llegada del token desde el navegador
                 HttpListenerContext context = await listener.GetContextAsync();
-                HttpListenerRequest request = context.Request;
+                receivedToken = context.Request.QueryString.Get("token");
 
-                // Extrae el token de los parámetros de la URL (ej. http://127.0.0.1:5005/?token=ey...)
-                receivedToken = request.QueryString.Get("token");
-
-                // Envía una respuesta al navegador para que el usuario sepa que puede cerrar la pestaña.
-                string responseString = "<html><body style='font-family: sans-serif; text-align: center;'><h1>¡Autenticación Exitosa!</h1><p>Puedes cerrar esta ventana y volver a la aplicación.</p></body></html>";
-                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-                HttpListenerResponse response = context.Response;
-                response.ContentType = "text/html; charset=utf-8";
-                await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                response.OutputStream.Close();
-                listener.Stop();
+                await RespondToBrowserAndCloseListener(context);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[AuthService] Falló el proceso de escucha del token local.");
+                Log.Error(ex, "[Auth] Falló la escucha del servidor local de autenticación.");
                 return null;
             }
-
-            // Si no se recibió un token, el proceso termina aquí.
-            if (string.IsNullOrWhiteSpace(receivedToken))
+            finally
             {
-                Log.Warning("[AuthService] El proceso de autenticación finalizó sin recibir un token.");
-                return null;
+                if (_activeListener != null && !_activeListener.IsListening) { _activeListener = null; }
             }
 
-            // Asigna el token a la sesión actual.
-            _sessionToken = receivedToken;
-
-            // Decodifica el token para obtener los datos del usuario.
-            CurrentUser = DecodeJwtToUser(_sessionToken);
-
-            if (CurrentUser != null)
-            {
-                Log.Information("[AuthService] Sesión iniciada para el usuario: {UserName} ({UserId})", CurrentUser.Name, CurrentUser.Id);
-                await SaveSessionTokenAsync(_sessionToken);
-            }
-
-            return CurrentUser;
+            return await CompleteLoginFlow(receivedToken);
         }
 
         /// <summary>
-        /// Obtiene el token de sesión (JWT) del usuario actual para autenticar peticiones al backend.
+        /// Intenta recuperar una sesión previa sin intervención del usuario.
         /// </summary>
-        public Task<string?> GetCurrentUserTokenAsync()
+        /// <returns>El usuario validado si el token guardado aún es válido; de lo contrario, null.</returns>
+        public async Task<User?> SilentLoginAsync()
         {
-            return Task.FromResult(_sessionToken);
+            string? storedToken = await LoadSessionTokenAsync();
+            if (string.IsNullOrWhiteSpace(storedToken)) { return null; }
+
+            Log.Information("[Auth] Intentando validación de sesión persistente.");
+            return await CompleteLoginFlow(storedToken);
         }
 
         /// <summary>
-        /// Cierra la sesión del usuario actual, limpiando el token y los datos del usuario.
+        /// Realiza el registro de una nueva cuenta mediante credenciales tradicionales.
+        /// </summary>
+        /// <param name="username">Nombre de usuario.</param>
+        /// <param name="email">Correo electrónico.</param>
+        /// <param name="password">Contraseña en texto plano.</param>
+        /// <returns>El usuario creado y logueado.</returns>
+        public async Task<User?> RegisterWithEmailAsync(string username, string email, string password)
+        {
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"{_authServiceBaseUrl}/register", new { username, email, password });
+            AuthTokenResponse result = await HandleAuthResponse(response);
+            return await CompleteLoginFlow(result.Token);
+        }
+
+        /// <summary>
+        /// Autentica al usuario mediante correo y contraseña.
+        /// </summary>
+        /// <param name="identifier">Nombre de usuario o correo.</param>
+        /// <param name="password">Contraseña.</param>
+        /// <returns>Instancia de <see cref="User"/> si las credenciales son correctas.</returns>
+        public async Task<User?> LoginWithEmailAsync(string identifier, string password)
+        {
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"{_authServiceBaseUrl}/login", new { identifier, password });
+            AuthTokenResponse result = await HandleAuthResponse(response);
+            return await CompleteLoginFlow(result.Token);
+        }
+
+        /// <summary>
+        /// Termina la sesión actual y purga el token de los almacenes seguros del sistema.
         /// </summary>
         public async Task LogoutAsync()
         {
+            Log.Information("[Auth] Cerrando sesión y limpiando almacenes de tokens.");
             _sessionToken = null;
             CurrentUser = null;
 
             if (_useOsCredentialStore && _store != null)
             {
-                await Task.Run(() => _store.Remove(ServiceName, AccountKey));
-                Log.Information("Token eliminado del almacén nativo.");
+                _ = await Task.Run(() => _store.Remove(ServiceName, AccountKey));
             }
-            else
+            else if (File.Exists(GetTokenFilePath()))
             {
-                if (File.Exists(GetTokenFilePath()))
-                {
-                    File.Delete(GetTokenFilePath());
-                    Log.Information("Archivo de token local eliminado.");
-                }
+                File.Delete(GetTokenFilePath());
             }
         }
 
         /// <summary>
-        /// Intenta restaurar una sesión a partir de un token cifrado guardado localmente.
+        /// Devuelve el token JWT de la sesión vigente para autorizar peticiones HTTP.
         /// </summary>
-        public async Task<User?> SilentLoginAsync()
+        /// <returns>El string del token o null si no hay sesión.</returns>
+        public Task<string?> GetCurrentUserTokenAsync()
         {
-            string? tokenToDecode = null;
+            return Task.FromResult(_sessionToken);
+        }
 
-            if (_useOsCredentialStore && _store != null)
-            {
-                Log.Information("Intentando inicio de sesión silencioso desde el almacén nativo del SO.");
-                var cred = await Task.Run(() => _store.Get(ServiceName, AccountKey));
-                if (cred != null)
-                {
-                    tokenToDecode = cred.Password;
-                }
-            }
-            else
-            {
-                Log.Information("Intentando inicio de sesión silencioso desde archivo local cifrado.");
-                if (File.Exists(GetTokenFilePath()))
-                {
-                    string protectedToken = await File.ReadAllTextAsync(GetTokenFilePath());
-                    if (!string.IsNullOrWhiteSpace(protectedToken))
-                    {
-                        try
-                        {
-                            var protector = _protectionProvider.CreateProtector("AsistenteVirtual.Auth.v1");
-                            tokenToDecode = protector.Unprotect(protectedToken);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "No se pudo descifrar el token local. El archivo será eliminado.");
-                            File.Delete(GetTokenFilePath()); // Elimina el token corrupto
-                        }
-                    }
-                }
-            }
+        #endregion
 
-            if (string.IsNullOrWhiteSpace(tokenToDecode))
-            {
-                Log.Information("No se encontró un token guardado para el inicio de sesión silencioso.");
-                return null;
-            }
+        #region Gestión de Contraseñas
 
-            CurrentUser = DecodeJwtToUser(tokenToDecode);
-            if (CurrentUser == null)
+        /// <summary>
+        /// Solicita al backend el envío de un correo de recuperación de contraseña.
+        /// </summary>
+        /// <param name="email">Correo del usuario afectado.</param>
+        public async Task RequestPasswordResetAsync(string email)
+        {
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"{_authServiceBaseUrl}/forgot-password", new { email });
+            if (!response.IsSuccessStatusCode)
             {
-                Log.Warning("El token guardado ha expirado o es inválido. Limpiando...");
-                await LogoutAsync(); // Llama a Logout para limpiar el token inválido de donde sea que estuviera.
-                return null;
+                string error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(error);
             }
-
-            Log.Information("Inicio de sesión silencioso exitoso para el usuario: {UserName}", CurrentUser.Name);
-            _sessionToken = tokenToDecode;
-            return CurrentUser;
         }
 
         /// <summary>
-        /// Envía un token de restablecimiento y una nueva contraseña al backend.
+        /// Actualiza la contraseña del usuario utilizando un token de recuperación válido.
         /// </summary>
-        /// <param name="token">El token JWT recibido por correo.</param>
-        /// <param name="newPassword">La nueva contraseña elegida por el usuario.</param>
+        /// <param name="token">Token de reseteo recibido por email.</param>
+        /// <param name="newPassword">Nueva contraseña elegida.</param>
         public async Task ResetPasswordAsync(string token, string newPassword)
         {
-            try
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync($"{_authServiceBaseUrl}/reset-password", new { token, new_password = newPassword });
+            if (!response.IsSuccessStatusCode)
             {
-                var response = await _httpClient.PostAsJsonAsync($"{AuthServiceBaseUrl}/reset-password", new
-                {
-                    token,
-                    new_password = newPassword
-                });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception(error);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[AuthService] Falló el restablecimiento de contraseña.");
-                throw; // Propaga la excepción para que el ViewModel la muestre.
+                string error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(error);
             }
         }
 
+        #endregion
+
+        #region Helpers de Criptografía y Validación
+
         /// <summary>
-        /// Decodifica un token JWT para extraer la información del usuario.
-        /// NOTA: Esta es una decodificación simple sin validación de firma, ya que confia
-        /// en que el token viene del propio backend a través de un canal seguro (localhost).
+        /// Valida la integridad y firma del token JWT utilizando el conjunto de claves públicas del servidor.
         /// </summary>
-        /// <param name="token">El token JWT en formato string.</param>
-        /// <returns>Un objeto User con los datos del token, o null si el token es inválido.</returns>
-        private User? DecodeJwtToUser(string token)
+        /// <param name="token">El token JWT a validar.</param>
+        /// <returns>Un objeto <see cref="User"/> con los claims extraídos del token.</returns>
+        /// <exception cref="SecurityTokenException">Lanzada si la firma es inválida o el token ha expirado.</exception>
+        private async Task<User> ValidateAndDecodeJwt(string token)
         {
+            string jwksUrl = $"{_authServiceBaseUrl}/.well-known/jwks.json";
+            string jwksJson = await _httpClient.GetStringAsync(jwksUrl);
+
+            JsonWebKeySet jwks = new(jwksJson);
+            IList<SecurityKey> signingKeys = jwks.GetSigningKeys();
+
+            string[] validIssuers =
+            [
+                "https://auth-service-staging-24416219573.us-south1.run.app",
+                "https://auth-service-production-24416219573.us-south1.run.app"
+            ];
+
+            TokenValidationParameters validationParameters = new()
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKeys = signingKeys,
+                ValidateIssuer = true,
+                ValidIssuers = validIssuers,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            };
+
+            ClaimsPrincipal principal = new JwtSecurityTokenHandler().ValidateToken(token, validationParameters, out _);
+
+            return new User
+            {
+                Id = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+                Name = principal.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty,
+                Email = principal.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty,
+                ProfilePictureUrl = principal.FindFirst("picture")?.Value ?? string.Empty,
+                LatestAppVersion = principal.FindFirst("app_version")?.Value ?? string.Empty
+            };
+        }
+
+        /// <summary>
+        /// Finaliza el proceso de login validando el token y persistiendo la sesión.
+        /// </summary>
+        private async Task<User?> CompleteLoginFlow(string? token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) { return null; }
+
             try
             {
-                // Un JWT se compone de 3 partes separadas por '.': Cabecera, Payload, Firma.
-                var parts = token.Split('.');
-                if (parts.Length != 3) return null;
-
-                // La parte del medio (Payload) contiene los datos del usuario.
-                string payloadJson = parts[1];
-                // El payload está codificado en Base64Url, necesita ser decodificado.
-                payloadJson = payloadJson.Replace('-', '+').Replace('_', '/');
-                switch (payloadJson.Length % 4)
-                {
-                    case 2: payloadJson += "=="; break;
-                    case 3: payloadJson += "="; break;
-                }
-                var jsonBytes = Convert.FromBase64String(payloadJson);
-                var jsonString = Encoding.UTF8.GetString(jsonBytes);
-
-                // Deserializa el JSON a un objeto anónimo para extraer los claims.
-                using var jsonDoc = JsonDocument.Parse(jsonString);
-                var root = jsonDoc.RootElement;
-
-                // --- Verificación de la fecha de expiración ---
-                if (root.TryGetProperty("exp", out var expClaim) && expClaim.ValueKind == JsonValueKind.Number)
-                {
-                    var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expClaim.GetInt64()).UtcDateTime;
-                    if (expirationTime < DateTime.UtcNow)
-                    {
-                        Log.Warning("[AuthService] El token de sesión ha expirado. Se requiere nuevo inicio de sesión.");
-                        return null; // El token está expirado, trata el login silencioso como fallido.
-                    }
-                }
-                // Crea el objeto User con la información del token.
-                return new User
-                {
-                    Id = root.TryGetProperty("sub", out var sub) ? sub.GetString() ?? "" : "",
-                    Name = root.TryGetProperty("name", out var name) ? name.GetString() ?? "" : "",
-                    Email = root.TryGetProperty("email", out var email) ? email.GetString() ?? "" : "",
-                    ProfilePictureUrl = root.TryGetProperty("picture", out var pic) ? pic.GetString() ?? "" : ""
-                };
+                CurrentUser = await ValidateAndDecodeJwt(token);
+                _sessionToken = token;
+                await SaveSessionTokenAsync(token);
+                return CurrentUser;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[AuthService] Error al decodificar el token JWT.");
+                Log.Warning(ex, "[Auth] El token de sesión no es válido. Limpiando recursos.");
+                await LogoutAsync();
                 return null;
             }
         }
 
         /// <summary>
-        /// Clase auxiliar para deserializar la respuesta del token desde el backend.
+        /// Envía una confirmación visual al navegador del usuario tras capturar el token.
         /// </summary>
-        internal class AuthTokenResponse
+        private static async Task RespondToBrowserAndCloseListener(HttpListenerContext context)
         {
-            public string? Token { get; set; }
+            string responseString = "<html><body style='font-family:sans-serif;text-align:center;'><h1>¡Éxito!</h1><p>Vuelve a la aplicación Ada.</p></body></html>";
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.ContentLength64 = buffer.Length;
+            await context.Response.OutputStream.WriteAsync(buffer);
+            context.Response.OutputStream.Close();
         }
-        
+
+        private static async Task<AuthTokenResponse> HandleAuthResponse(HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(error);
+            }
+            return await response.Content.ReadFromJsonAsync<AuthTokenResponse>() ?? throw new InvalidOperationException();
+        }
+
+        #endregion
+
+        #region Almacenamiento Persistente
+
         /// <summary>
-        /// Obtiene la ruta completa al archivo donde se guardará el token de sesión cifrado.
+        /// Guarda el token de sesión cifrado en el almacén de mayor seguridad disponible.
         /// </summary>
-        private string GetTokenFilePath()
+        private async Task SaveSessionTokenAsync(string token)
         {
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string dirPath = Path.Combine(appDataPath, "Ada");
-            Directory.CreateDirectory(dirPath);
-            return Path.Combine(dirPath, "session.token");
+            if (_useOsCredentialStore && _store != null)
+            {
+                await Task.Run(() => _store.AddOrUpdate(ServiceName, AccountKey, token));
+            }
+            else
+            {
+                IDataProtector protector = _protectionProvider.CreateProtector("Ada.Auth.v1");
+                string protectedToken = protector.Protect(token);
+                await File.WriteAllTextAsync(GetTokenFilePath(), protectedToken);
+            }
         }
+
+        /// <summary>
+        /// Recupera el token guardado del almacén seguro.
+        /// </summary>
+        private async Task<string?> LoadSessionTokenAsync()
+        {
+            if (_useOsCredentialStore && _store != null)
+            {
+                ICredential cred = await Task.Run(() => _store.Get(ServiceName, AccountKey));
+                if (cred != null) { return cred.Password; }
+            }
+
+            string path = GetTokenFilePath();
+            if (File.Exists(path))
+            {
+                try
+                {
+                    string protectedToken = await File.ReadAllTextAsync(path);
+                    return _protectionProvider.CreateProtector("Ada.Auth.v1").Unprotect(protectedToken);
+                }
+                catch { File.Delete(path); }
+            }
+            return null;
+        }
+
+        private static string GetTokenFilePath()
+        {
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Ada");
+            _ = Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "session.token");
+        }
+
+        private sealed class AuthTokenResponse { public string Token { get; set; } = string.Empty; }
+
+        #endregion
     }
 }

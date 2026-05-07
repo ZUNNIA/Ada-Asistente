@@ -18,7 +18,7 @@ namespace AsistenteVirtual.Models
         /// <summary>
         /// El ID del hilo de conversación. Puede ser uno nuevo si la conversación acaba de empezar.
         /// </summary>
-        [JsonPropertyName("thread_id")]
-        public string ThreadId { get; set; } = string.Empty;
+        [JsonPropertyName("conversation_id")]
+        public string ConversationId { get; set; } = string.Empty;
     }
 }

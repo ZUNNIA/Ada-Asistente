@@ -5,27 +5,26 @@ using Avalonia.Data.Converters;
 namespace AsistenteVirtual.Converters
 {
     /// <summary>
-    /// Convierte un recuento numérico (integer) a un valor booleano para controlar la visibilidad en Avalonia.
-    /// Si el recuento es mayor que cero, el resultado es true (Visible); de lo contrario, es false (Collapsed).
+    /// Evalúa si un recuento entero es mayor a cero para determinar la visibilidad de un control.
     /// </summary>
     public class CountToVisibilityConverter : IValueConverter
     {
         /// <summary>
-        /// Convierte un recuento entero a un valor booleano.
+        /// Convierte un entero en un booleano de visibilidad.
         /// </summary>
-        /// <param name="value">El recuento de elementos (debe ser un entero).</param>
-        /// <returns>True si el recuento es > 0; de lo contrario, false.</returns>
+        /// <param name="value">El número de elementos (int).</param>
+        /// <param name="targetType">Tipo esperado.</param>
+        /// <param name="parameter">Parámetro opcional.</param>
+        /// <param name="culture">Cultura.</param>
+        /// <returns>True si el valor es mayor a 0; de lo contrario, False.</returns>
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return (value is int count && count > 0);
+            return value is int count && count > 0;
         }
 
-        /// <summary>
-        /// La conversión inversa no está implementada.
-        /// </summary>
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 }

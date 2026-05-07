@@ -1,50 +1,45 @@
-using System.Collections.Generic;
-
 namespace AsistenteVirtual.Models
 {
     /// <summary>
-    /// Define los límites de uso para cada nivel de suscripción.
-    /// Es una clase estática para acceder a los límites de forma centralizada.
+    /// Define los costos en "Créditos" para cada acción de IA.
+    /// Esta es la única fuente de verdad para la monetización.
+    /// 1 Crédito = $0.0001 USD (Tasa de costo interno)
     /// </summary>
-    public static class SubscriptionLimits
+    public static class CreditCosts
     {
-        // Define los nombres de las características para consistencia.
-        public const string MainMode = "Uso del Modo Principal";
-        public const string QuickMode = "Uso de Modo Rápido";
-        public const string ReasoningMode = "Uso de Modo Razonador";
-        public const string WebSearch = "Búsqueda Web";
+        // --- CARTERA DE CHAT ---
 
-        // Mapeo de límites por nivel de suscripción.
-        public static readonly Dictionary<SubscriptionTier, Dictionary<string, (int Daily, int Monthly)>> Limits = new()
-        {
-            [SubscriptionTier.Free] = new Dictionary<string, (int, int)>
-            {
-                { MainMode,      (Daily: 5, Monthly: 150) },
-                { QuickMode,     (Daily: 5, Monthly: 150) },
-                { ReasoningMode, (Daily: 2, Monthly: 60)  },
-                { WebSearch,     (Daily: 2, Monthly: 60)  }
-            },
-            [SubscriptionTier.Esencial] = new Dictionary<string, (int, int)>
-            {
-                { MainMode,      (Daily: 30, Monthly: 900)  },
-                { QuickMode,     (Daily: 70, Monthly: 2100) },
-                { ReasoningMode, (Daily: 10, Monthly: 300)  },
-                { WebSearch,     (Daily: 10, Monthly: 300)  }
-            },
-            [SubscriptionTier.Plus] = new Dictionary<string, (int, int)>
-            {
-                { MainMode,      (Daily: 90,  Monthly: 2700) },
-                { QuickMode,     (Daily: 210, Monthly: 6300) },
-                { ReasoningMode, (Daily: 30,  Monthly: 900)  },
-                { WebSearch,     (Daily: 30,  Monthly: 900)  }
-            },
-            [SubscriptionTier.Premium] = new Dictionary<string, (int, int)>
-            {
-                { MainMode,      (Daily: 180, Monthly: 5400)  },
-                { QuickMode,     (Daily: 420, Monthly: 12600) },
-                { ReasoningMode, (Daily: 60,  Monthly: 6030)  },
-                { WebSearch,     (Daily: 60,  Monthly: 6030)  }
-            }
-        };
+        /// <summary>
+        /// Costo para un mensaje rápido (Non-Thinking).
+        /// </summary>
+        public const long ChatFlashQuick = 12;
+
+        /// <summary>
+        /// Costo para un mensaje razonador (Thinking).
+        /// </summary>
+        public const long ChatFlashReasoning = 14;
+
+        /// <summary>
+        /// Costo para un mensaje con el modelo Pro.
+        /// </summary>
+        public const long ChatPro = 54;
+
+        /// <summary>
+        /// Costo para una búsqueda web fundamentada.
+        /// </summary>
+        public const long WebSearch = 350;
+
+        // --- CARTERA DE GENERACIÓN ---
+
+        /// <summary>
+        /// Costo para generar 1 imagen.
+        /// </summary>
+        public const long ImageGeneration = 600;
+
+        /// <summary>
+        /// Costo para editar 1 imagen.
+        /// Incluye costos de entrada y generación de salida.
+        /// </summary>
+        public const long ImageEditing = 400;
     }
 }

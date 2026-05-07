@@ -1,40 +1,47 @@
-﻿using System.IO;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
+using MessagePack;
 
 namespace AsistenteVirtual.Models
 {
     /// <summary>
-    /// Representa un archivo adjunto, ya sea local o subido a OpenAI.
-    /// Contiene solo los datos del archivo, no su estado de subida ni lógica de UI.
+    /// Representa un archivo adjunto dentro de una conversación.
+    /// Gestiona la relación entre el archivo físico local y su representación en la nube (GCS).
     /// </summary>
+    [MessagePackObject]
     public class AttachedFile
     {
         /// <summary>
-        /// Identificador único del archivo asignado por la API de OpenAI después de la subida.
+        /// Obtiene o establece el identificador único en la nube (URI de GCS).
         /// </summary>
+        /// <returns>La ruta gs:// del archivo si ya fue subido.</returns>
+        [Key("file_id")]
         [JsonPropertyName("file_id")]
         public string? FileId { get; set; }
 
         /// <summary>
-        /// Nombre del archivo con su extensión.
+        /// Obtiene o establece el nombre completo del archivo incluyendo su extensión.
         /// </summary>
+        [Key("file_name")]
         [JsonPropertyName("file_name")]
         public string FileName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Ruta completa al archivo en el sistema de archivos local.
-        /// Es nulo o vacío para archivos que solo existen en la nube.
+        /// Obtiene o establece la ruta absoluta en el disco local.
         /// </summary>
+        /// <remarks>Solo disponible durante la sesión donde se adjuntó el archivo originalmente.</remarks>
+        [Key("full_path")]
         public string? FullPath { get; set; }
 
         /// <summary>
-        /// La extensión del archivo sin el punto (ej. "pdf", "txt").
+        /// Obtiene o establece la extensión del archivo (ej. ".pdf").
         /// </summary>
+        [Key("file_type_extension")]
         public string FileTypeExtension { get; set; } = string.Empty;
 
         /// <summary>
-        /// Indica si el archivo es una imagen, basado en su extensión.
+        /// Indica si el archivo debe ser tratado como una imagen para procesamiento visual.
         /// </summary>
+        [Key("is_image")]
         public bool IsImage { get; set; }
     }
 }

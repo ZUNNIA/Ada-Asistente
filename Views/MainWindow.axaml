@@ -1,233 +1,25 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AsistenteVirtual.ViewModels"
-        xmlns:c="using:AsistenteVirtual.Converters"
-        xmlns:i="using:Avalonia.Xaml.Interactivity"
-        xmlns:ia="using:Avalonia.Xaml.Interactions.Core"
         xmlns:svg="using:Avalonia.Svg.Skia"
+        xmlns:const="using:AsistenteVirtual.Constants" 
+        xmlns:views="using:AsistenteVirtual.Views"
         x:Class="AsistenteVirtual.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="avares://Ada/Resources/Icons/ada.png"
         Title="Ada Asistente"
         Width="1100" 
         Height="800"
-        DragDrop.AllowDrop="True"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent">
 
-    <Window.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        
-        <!-- Asegura fondo transparente cuando el control tiene foco o hover -->
-        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-        <Style Selector="TextBox:focus-visible /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-
-        <Style Selector="Border#HistoryPanelBorder">
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <TranslateTransform X="-250" Y="0" />
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Easing="CubicEaseOut"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Border#HistoryPanelBorder.open">
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <TranslateTransform X="0" Y="0" />
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style Selector="Border#FilesPanelBorder">
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <TranslateTransform X="250" Y="0" />
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Easing="CubicEaseOut"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Border#FilesPanelBorder.open">
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <TranslateTransform X="0" Y="0" />
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Styles>
-
-    <Window.Resources>
-        <c:UrlToBitmapConverter x:Key="UrlToBitmapConverter" />
-        <c:StringEqualsConverter x:Key="StringEqualsConverter" />
-    </Window.Resources>
-
-    <Window.DataTemplates>
-        <!-- Template para cada objeto en la lista del historial de conversaciones -->
-        <DataTemplate DataType="vm:ConversationHistoryViewModel">
-            <Border Classes="historyItem" Background="Transparent" Padding="8,10">
-                <!-- Ejecuta el comando para cargar la conversación -->
-                <i:Interaction.Behaviors>
-                    <ia:EventTriggerBehavior EventName="PointerPressed">
-                        <ia:InvokeCommandAction Command="{Binding LoadCommand}" />
-                    </ia:EventTriggerBehavior>
-                </i:Interaction.Behaviors>
-                
-                <Grid Name="ContainerGrid" Background="Transparent">
-                    <Grid ColumnDefinitions="*,Auto,Auto">
-                        <!-- Muestra el título de la conversación -->
-                        <TextBlock Grid.Column="0"
-                                   Text="{Binding Title}" 
-                                   VerticalAlignment="Center" 
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{StaticResource TextColorBrush}" 
-                                   FontSize="14"
-                                   FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                                   IsVisible="{Binding IsDisplayingTitle}"/>
-                                   
-                        <!-- Muestra un TextBox para editar el título cuando IsEditingTitle es true -->
-                        <TextBox Name="TitleEditor" 
-                                 Grid.Column="0" 
-                                 Grid.ColumnSpan="3"
-                                 Text="{Binding Title, Mode=TwoWay}" 
-                                 VerticalContentAlignment="Center"
-                                 Background="Transparent" 
-                                 Foreground="{StaticResource TextColorBrush}" 
-                                 CaretBrush="{StaticResource TextColorBrush}"
-                                 FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf" 
-                                 Watermark="Escribe un título..."
-                                 IsVisible="{Binding IsEditingTitle}">
-                             <i:Interaction.Behaviors>
-                                <ia:EventTriggerBehavior EventName="LostFocus">
-                                    <ia:InvokeCommandAction Command="{Binding ProcessTitleEditCommand}" />
-                                </ia:EventTriggerBehavior>
-                             </i:Interaction.Behaviors>
-                        </TextBox>
-                        
-                        <!-- Botones para renombrar y eliminar la conversación -->
-                        <Button Classes="imageButton historyActionButton" Grid.Column="1" Margin="5,0,0,0" Command="{Binding RenameCommand}" IsVisible="{Binding IsDisplayingTitle}">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/editar.svg"/>
-                                </Image.Source>
-                            </Image>
-                        </Button>
-                        <Button Classes="imageButton historyActionButton" Grid.Column="2" Margin="5,0,0,0" Command="{Binding DeleteCommand}" IsVisible="{Binding IsDisplayingTitle}">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/eliminar.svg"/>
-                                </Image.Source>
-                            </Image>
-                        </Button>
-                     </Grid>
-                </Grid>
-            </Border>
-        </DataTemplate>
-
-        <!-- Template para cada mensaje en el chat -->
-        <DataTemplate DataType="vm:ChatMessageViewModel">
-            <!-- El DockPanel se alinea a la derecha o izquierda según el rol (Usuario/Asistente) -->
-            <DockPanel MaxWidth="600" HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
-                <!--
-                  Modifica el estilo del boder (margen, fondo) usando mis clases (user, asistente)
-                  que se activan con el StringEqualsConverter.
-                -->
-                <Border Padding="10" 
-                        CornerRadius="10"
-                        Classes.user="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Usuario}"
-                        Classes.asistente="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Asistente}"
-                        Classes.sistema="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Sistema}">
-                    <Border.Styles>
-                        <Style Selector="Border.user">
-                            <Setter Property="Margin" Value="50,5,5,5"/>
-                            <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}"/>
-                            <Setter Property="BorderThickness" Value="1"/>
-                            <Setter Property="Background" Value="Transparent"/>
-                        </Style>
-                        <Style Selector="Border.asistente">
-                            <Setter Property="Margin" Value="5,5,50,5"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="Background" Value="Transparent"/>
-                        </Style>
-                        <Style Selector="Border.sistema">
-                            <Setter Property="Margin" Value="40,5"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="Background" Value="{StaticResource SystemMessageBackgroundBrush}"/>
-                        </Style>
-                    </Border.Styles>
-                    <TextBox Text="{Binding Content}"
-                             IsReadOnly="True"
-                             SelectionBrush="{StaticResource HoverBgBrush}"
-                             CaretBrush="Transparent"
-                             BorderThickness="0"
-                             Background="Transparent"
-                             BorderBrush="Transparent"
-                             Foreground="{StaticResource TextColorBrush}"
-                             FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                             TextWrapping="Wrap"
-                             AcceptsReturn="True"
-                             VerticalContentAlignment="Top"
-                             HorizontalContentAlignment="Left" />
-                </Border>
-            </DockPanel>
-        </DataTemplate>
-
-        <!-- Template para cada archivo adjunto (tanto en el panel de archivos como en el área de input) -->
-        <DataTemplate DataType="vm:AttachedFileViewModel">
-            <Border Background="transparent" Padding="5" Margin="2" CornerRadius="5" MaxWidth="180">
-                <Grid ColumnDefinitions="Auto, *, Auto">
-                    <!-- Panel para mostrar el icono o la vista previa de la imagen -->
-                    <Panel Grid.Column="0" Width="20" Height="20" Margin="0,0,5,0">
-                        <!-- Muestra la vista previa si es una imagen -->
-                        <Image Source="{Binding ImagePreviewSource}"
-                               IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}}"/>
-                        <!-- Muestra el icono del tipo de archivo si no es una imagen -->
-                        <Image IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNull}">
-                            <Image.Source>
-                                <svg:SvgImage Source="{Binding IconPath}"/>
-                            </Image.Source>
-                        </Image>
-                    </Panel>
-                    <!-- Nombre del archivo -->
-                    <TextBlock Grid.Column="1" Text="{Binding FileName}" Foreground="{StaticResource TextColorBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,5,0"/>
-                    <!-- Botón para eliminar el archivo -->
-                    <Button Classes="imageButton historyActionButton" Grid.Column="2" Command="{Binding RemoveCommand}">
-                        <Image>
-                            <Image.Source>
-                                <svg:SvgImage Source="avares://Ada/Resources/Icons/eliminar.svg"/>
-                            </Image.Source>
-                         </Image>
-                    </Button>
-                </Grid>
-            </Border>
-        </DataTemplate>
-    </Window.DataTemplates>
-
-    <!--
-      DISEÑO PRINCIPAL DE LA VENTANA
-      Un Grid de 3 columnas: Panel de historial de conversaciones (Izquierdo), Conversación (Área Central), Panel de archivos en este chat (Derecho).
+    <!-- 
+        CONTENEDOR RAÍZ 
+        Organizado en una rejilla de 3 columnas: Historial, Chat y Archivos.
     -->
     <Grid Name="MainGrid">
         <Grid.Background>
-            <SolidColorBrush Color="{StaticResource ColorDarkBgSecondary}"/>
+            <SolidColorBrush Color="{StaticResource BaseBgSurface}"/>
         </Grid.Background>
 
         <Grid.ColumnDefinitions>
@@ -236,640 +28,300 @@
             <ColumnDefinition Width="250"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Notificaciones de errores -->
+        <!-- ================================================================== -->
+        <!-- REGIÓN: NOTIFICACIONES (CAPA SUPERIOR Z-INDEX 1100)                -->
+        <!-- ================================================================== -->
         <ItemsControl Grid.Column="0" 
-                      ItemsSource="{Binding ErrorNotifications}"
-                      VerticalAlignment="Top" 
-                      HorizontalAlignment="Left"
-                      Margin="10,10,0,0" 
-                      ZIndex="1100">
+                    ItemsSource="{Binding ErrorNotifications}"
+                    VerticalAlignment="Top" 
+                    HorizontalAlignment="Left"
+                    Margin="10,10,0,0" 
+                    ZIndex="1100">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="vm:ErrorNotificationViewModel">
-                    <Border Width="230"
+                    <Border Name="NotificationItemRoot"
+                            Width="230"
                             Background="{Binding IsCritical, Converter={StaticResource BooleanToErrorBackgroundConverter}}"
                             BorderBrush="{Binding IsCritical, Converter={StaticResource BooleanToErrorBorderConverter}}"
                             BorderThickness="1"
-                            CornerRadius="5"
+                            CornerRadius="8"
                             Padding="10"
                             Margin="0,5">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="{Binding Message}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="White"/>
+
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        
+                        <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
+                            <TextBlock Grid.Column="0" Grid.Row="0"
+                                        Text="{Binding Message}" 
+                                        TextWrapping="Wrap" 
+                                        VerticalAlignment="Center" 
+                                        Foreground="White"
+                                        FontSize="13"/>
                             
-                            <Button Grid.Column="1" 
-                                    Content="Reintentar" 
-                                    IsVisible="{Binding IsRetriable}" 
-                                    Command="{Binding RetryCommand}"
-                                    Margin="10,0,0,0"/>
+                            <Button Grid.Column="1" Grid.Row="0"
+                                    Classes="imageButton"
+                                    Command="{Binding CloseCommand}"
+                                    CommandParameter="{Binding}"
+                                    VerticalAlignment="Top"
+                                    Height="24" Width="24">
+                                <Image Width="12" Height="12">
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/delete.svg" Css="* { fill: white; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
                             
-                            <ProgressBar Grid.Column="1" 
-                                         IsIndeterminate="True" 
-                                         IsVisible="{Binding ShowProgressBar}"
-                                         Width="20" 
-                                         Height="20"
-                                         Margin="10,0,0,0"/>
+                            <StackPanel Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right"
+                                        Spacing="10"
+                                        Margin="0,10,0,0">
+                                
+                                <Button Content="Copiar Detalles"
+                                        Classes="linkButton"
+                                        Foreground="White"
+                                        Command="{Binding CopyDetailsCommand}"
+                                        IsVisible="{Binding CanCopyDetails}"/>
+
+                                <Button Content="{Binding PrimaryActionText}"
+                                        Classes="linkButton"
+                                        Foreground="White"
+                                        Command="{Binding PrimaryActionCommand}"
+                                        IsVisible="{Binding PrimaryActionText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- PANEL DE HISTORIAL DE CONVERSACIONES -->
-        <Border Name="HistoryPanelBorder" 
-                Grid.Column="0" 
-                Width="230" 
-                HorizontalAlignment="Left"
-                Background="#051923" 
-                BorderBrush="{StaticResource BorderColorBrush}" 
-                BorderThickness="1" 
-                CornerRadius="15"
-                Padding="5" 
-                Margin="10,10,0,10" 
-                ZIndex="10" 
-                PointerEntered="HistoryPanel_PointerEntered" 
-                PointerExited="HistoryPanel_PointerExited">
-            <Grid RowDefinitions="Auto, *, Auto">
-                <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                    <!-- Botón para crear una nueva conversación -->
-                    <Button Classes="sidePanelButton" Command="{Binding NewConversationCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/nuevo_chat.svg"/>
-                                </Image.Source>
-                            </Image>
-                            <TextBlock Text="Nueva Conversación" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Label Classes="panelTitle" Content="Conversaciones" HorizontalAlignment="Left"/>
-                </StackPanel>
-                <!-- Lista que muestra el historial -->
-                <ListBox Name="HistoryListBox" Grid.Row="1" 
-                     ItemsSource="{Binding ConversationHistory}" 
-                     Background="Transparent" 
-                     Margin="0,0,0,10">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel/>
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                </ListBox>
-                <!-- Sesión del usuario, en la parte inferior del panel de conversaciones -->
-                <Border Grid.Row="2" BorderThickness="0" BorderBrush="{StaticResource BorderColorBrush}">
-                    <i:Interaction.Behaviors>
-                        <ia:EventTriggerBehavior EventName="PointerPressed">
-                            <ia:InvokeCommandAction Command="{Binding ToggleSettingsFlyoutCommand}" />
-                        </ia:EventTriggerBehavior>
-                    </i:Interaction.Behaviors>
-                    <Border.Padding>8,5,8,5</Border.Padding>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <!-- Círculo para la foto de perfil del usuario -->
-                         <Ellipse Margin="0,0,10,0" Width="32" Height="32" VerticalAlignment="Center"
-                                Fill="{Binding UserProfileBrush}" />
-                        <!-- Nombre del usuario -->
-                        <TextBlock Grid.Column="1" 
-                                   Text="{Binding UserDisplayName}" 
-                                   Foreground="{StaticResource TextColorBrush}" 
-                                   FontSize="16"
-                                   FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                                   VerticalAlignment="Center" 
-                                   TextTrimming="CharacterEllipsis" />
-                    </Grid>
-                </Border>
-            </Grid>
-        </Border>
-        
-        <Panel Name="HistoryTriggerArea" 
-               Grid.Column="0" 
-               Width="30" 
-               HorizontalAlignment="Left" 
-               Background="Transparent" 
-               ZIndex="5"
-               PointerEntered="HistoryTriggerArea_PointerEntered" 
-               PointerExited="HistoryTriggerArea_PointerExited"/>
-               
-        <!-- Ventana de suscripciones, configuración y cerrar sesión -->
-        <Grid Grid.ColumnSpan="3"
-              Background="Transparent"
-              ZIndex="99"
-              IsVisible="{Binding IsSettingsFlyoutOpen}"
-              PointerPressed="Overlay_PointerPressed">
+        <!-- ================================================================== -->
+        <!-- REGIÓN: PANELES LATERALES Y ÁREAS DE ACTIVACIÓN                    -->
+        <!-- ================================================================== -->
 
+        <!-- Panel Izquierdo: Historial -->
+        <views:HistoryPanel Name="HistoryPanelControl" 
+                            Grid.Column="0"
+                            ZIndex="10"
+                            PointerEntered="HistoryPanel_PointerEntered"
+                            PointerExited="HistoryPanel_PointerExited">
+            <views:HistoryPanel.RenderTransform>
+                <TranslateTransform X="-250"/>
+            </views:HistoryPanel.RenderTransform>
+        </views:HistoryPanel>
+            
+        <Panel Name="HistoryTriggerArea" 
+                Grid.Column="0" 
+                Width="30" 
+                HorizontalAlignment="Left" 
+                Background="Transparent" 
+                ZIndex="5"
+                PointerEntered="HistoryTriggerArea_PointerEntered"
+                PointerExited="HistoryTriggerArea_PointerExited" />
+
+        <!-- Panel Derecho: Archivos -->
+        <views:FilesPanel Name="FilesPanelControl" 
+                        Grid.Column="2"
+                        ZIndex="10"
+                        PointerEntered="FilesPanel_PointerEntered"
+                        PointerExited="FilesPanel_PointerExited">
+            <views:FilesPanel.RenderTransform>
+                <TranslateTransform X="250"/>
+            </views:FilesPanel.RenderTransform>
+        </views:FilesPanel>
+
+        <Panel Name="FilesTriggerArea" 
+                Grid.Column="2" 
+                Width="30" 
+                HorizontalAlignment="Right" 
+                Background="Transparent" 
+                ZIndex="5"
+                PointerEntered="FilesTriggerArea_PointerEntered"
+                PointerExited="FilesTriggerArea_PointerExited" />
+
+        <!-- ================================================================== -->
+        <!-- REGIÓN: MODALES Y OVERLAYS (Z-INDEX 100+)                          -->
+        <!-- ================================================================== -->
+
+        <!-- Menú Flotante de Usuario (Flyout) -->
+        <Grid Grid.ColumnSpan="3" ZIndex="99" Background="Transparent" IsVisible="{Binding UI.IsSettingsFlyoutOpen}" PointerPressed="Overlay_PointerPressed">
             <Border Name="SettingsFlyoutContent"
-                    Grid.Column="0" 
-                    Background="#051923" 
-                    BorderBrush="{StaticResource BorderColorBrush}" 
+                    Background="{StaticResource BgSurfaceBrush}" 
+                    BorderBrush="{StaticResource BorderBrush}" 
                     BorderThickness="1"
-                    CornerRadius="15" 
-                    Padding="5" 
-                    Margin="10,0,0,60" 
-                    ZIndex="100"
-                    HorizontalAlignment="Left" 
-                    VerticalAlignment="Bottom"
-                    Width="230"
+                    CornerRadius="15" Padding="5" Margin="10,0,0,60" 
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="230"
                     PointerPressed="Content_PointerPressed">
-                
                 <StackPanel Spacing="5">
                     <Button Classes="sidePanelButton" Command="{Binding OpenSubscriptionsWindowCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/ada.svg"/>
-                                </Image.Source>
-                            </Image>
-                            <TextBlock Text="Suscripciones" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Image Width="18" Height="18"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/ada.svg"/></Image.Source></Image>
+                            <TextBlock Text="{DynamicResource Nav_Credits}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Classes="sidePanelButton" Command="{Binding OpenSettingsWindowCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/ajustes.svg"/>
-                                </Image.Source>
-                            </Image>
-                            <TextBlock Text="Configuración" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Image Width="18" Height="18"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/settings.svg"/></Image.Source></Image>
+                            <TextBlock Text="{DynamicResource Nav_Settings}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Classes="sidePanelButton" Command="{Binding LogoutCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Image>
-                                <Image.Source>
-                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/cerrar_sesion.svg"/>
-                                </Image.Source>
-                            </Image>
-                            <TextBlock Text="Cerrar Sesión" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Image Width="18" Height="18"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/auth_logout.svg"/></Image.Source></Image>
+                            <TextBlock Text="{DynamicResource Nav_Logout}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <!-- Ventana de selección de suscripciones -->
-        <Grid Grid.ColumnSpan="3"
-              Background="rgba(0, 0, 0, 0.76)"
-              ZIndex="1001"
-              IsVisible="{Binding IsSubscriptionsWindowOpen}"
-              PointerPressed="Overlay_PointerPressed">
-            <Border Classes="overlayBorder" Width="1000" MinHeight="700" PointerPressed="Content_PointerPressed">
+        <!-- Tienda de Suscripciones -->
+        <views:StoreView Grid.ColumnSpan="3" ZIndex="1001" PointerPressed="Overlay_PointerPressed"/>
+
+        <!-- Ventana de Configuración -->
+        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="1000" IsVisible="{Binding UI.IsSettingsWindowOpen}" PointerPressed="Overlay_PointerPressed">
+            <Border Classes="overlayBorder" Width="500" MinHeight="400" PointerPressed="Content_PointerPressed">
                 <Grid RowDefinitions="Auto, *">
-                    <!-- Encabezado -->
-                    <StackPanel Grid.Row="0" Margin="20" HorizontalAlignment="Center" Spacing="5">
-                        <TextBlock Text="Elige tu plan"
-                                   FontSize="24"
-                                   FontWeight="Bold"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Puedes cancelar en cualquier momento"
-                                   Foreground="Gray"
-                                   HorizontalAlignment="Center"/>
+                    <StackPanel Grid.Row="0" Margin="20" Spacing="15">
+                        <TextBlock Text="{DynamicResource Nav_Settings}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <Border Classes="toggleSwitchContainer" HorizontalAlignment="Center">
+                            <Grid ColumnDefinitions="*,*">
+                                <Border Grid.Column="{Binding SelectedSettingsTab, Converter={StaticResource SettingsTabToIndexConverter}}" Classes="toggleSwitchSlider"/>
+                                <Button Grid.Column="0" Content="{DynamicResource Settings_Tab_General}" Classes="toggleSwitchButton" Command="{Binding SelectSettingsTabCommand}" CommandParameter="{x:Static const:TabNames.SettingsGeneral}"/>
+                                <Button Grid.Column="1" Content="{DynamicResource Settings_Tab_About}" Classes="toggleSwitchButton" Command="{Binding SelectSettingsTabCommand}" CommandParameter="{x:Static const:TabNames.SettingsAbout}"/>
+                            </Grid>
+                        </Border>
                     </StackPanel>
-
-                    <!-- Planes de suscripción -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="20">
-                        <!-- Plan Esencial -->
-                        <Border Classes="subscriptionPlanBorder" Background="transparent">
-                            <StackPanel Spacing="15">
-                                <StackPanel Spacing="5" HorizontalAlignment="Center">
-                                    <TextBlock Text="Plan Esencial" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="$4.99 USD / mes" FontSize="22" HorizontalAlignment="Center"/>
+                    <!-- Contenido General -->
+                    <StackPanel Grid.Row="1" Margin="25" Spacing="20" IsVisible="{Binding IsGeneralTabActive}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="{DynamicResource Settings_Lbl_Language}" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Classes="accentButton" Command="{Binding ToggleLanguageCommand}" Width="140">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <Image Width="16" Height="16"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/settings.svg"/></Image.Source></Image>
+                                    <TextBlock Text="{Binding CurrentLanguageLabel}" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="Para usuarios casuales que quieren un poco más." 
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           TextWrapping="Wrap" 
-                                           MinHeight="50" 
-                                           HorizontalAlignment="Center"
-                                           TextAlignment="Center"/>
-                                <Button Content="Seleccionar Plan" 
-                                        HorizontalAlignment="Center" 
-                                        Classes="accentButton"/>
-                                <ItemsControl ItemsSource="{Binding EssentialPlanFeatures}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="✓" Foreground="LightGreen" FontWeight="Bold"/>
-                                                <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
+                            </Button>
+                        </Grid>
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{DynamicResource Settings_Lbl_Memories}" FontWeight="Bold" FontSize="16"/>
+                            <Button Content="{DynamicResource Settings_Btn_ManageMemories}" Classes="linkButton" Command="{Binding OpenMemoriesWindowCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <!-- Contenido Acerca de -->
+                    <StackPanel Grid.Row="1" Margin="25" Spacing="15" IsVisible="{Binding IsAboutTabActive}">
+                        <Button Content="{DynamicResource Settings_Btn_History}" Classes="linkButton" Command="{Binding OpenUpdateHistoryWindowCommand}"/>
+                        <Button Content="{DynamicResource Settings_Btn_Privacy}" Classes="linkButton" Command="{Binding OpenLegalWindowCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
 
-                        <!-- Plan Plus -->
-                        <Border Grid.Column="1" Margin="10,0,0,0" Classes="subscriptionPlanBorder" Background="transparent">
-                            <StackPanel Spacing="15">
-                                <StackPanel Spacing="5" HorizontalAlignment="Center">
-                                    <TextBlock Text="Plan Esencial" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="$12.99 USD / mes" FontSize="22" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="Para usuarios intermedios o estudiantes con mayores necesidades."
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           TextWrapping="Wrap" 
-                                           MinHeight="50" 
-                                           HorizontalAlignment="Center"
-                                           TextAlignment="Center"/>
-                                <Button Content="Seleccionar Plan" 
-                                        HorizontalAlignment="Center" 
-                                        Classes="accentButton"/>
-                                <ItemsControl ItemsSource="{Binding PlusPlanFeatures}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="✓" Foreground="LightGreen" FontWeight="Bold"/>
-                                                <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+        <!-- Gestor de Memorias -->
+        <Grid Grid.ColumnSpan="3" ZIndex="1001" IsVisible="{Binding UI.IsMemoriesWindowOpen}">
+            <Border Background="#AA000000" PointerPressed="Overlay_PointerPressed"/>
+            <Border Classes="overlayBorder" Width="650" MinHeight="550" PointerPressed="Content_PointerPressed">
+                <Grid RowDefinitions="Auto, *, Auto">
+                    <StackPanel Grid.Row="0" Margin="20" Spacing="5">
+                        <TextBlock Text="{DynamicResource Memories_Title}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Memories_Subtitle}" TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource TextDimBrush}"/>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" Margin="20,0">
+                        <ItemsControl ItemsSource="{Binding Memories}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:MemoryViewModel">
+                                    <Border Padding="12" Margin="0,4" CornerRadius="10" BorderThickness="1" BorderBrush="#22FFFFFF" Background="#0AFFFFFF">
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Content}" VerticalAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding IsDisplaying}"/>
+                                            <TextBox Grid.Column="0" Text="{Binding Content, Mode=TwoWay}" IsVisible="{Binding IsEditing}" Classes="inputEditor" Padding="0"/>
+                                            <Button Grid.Column="1" Command="{Binding EditCommand}" IsVisible="{Binding IsDisplaying}" Classes="imageButton historyActionButton" Margin="10,0,0,0">
+                                                <Image Width="14" Height="14"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/edit.svg"/></Image.Source></Image>
+                                            </Button>
+                                            <Button Grid.Column="2" Command="{Binding DeleteCommand}" Classes="imageButton historyActionButton" Margin="5,0,0,0">
+                                                <Image Width="14" Height="14"><Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/delete.svg"/></Image.Source></Image>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="20">
+                        <Border Grid.Column="0" Classes="inputBorder" BorderBrush="{StaticResource BorderBrush}">
+                            <TextBox Watermark="{DynamicResource Memories_Placeholder}" Text="{Binding NewMemoryContent, Mode=TwoWay}" Classes="inputEditor"/>
                         </Border>
+                        <Button Grid.Column="1" Content="{DynamicResource Memories_Btn_Save}" Command="{Binding AddMemoryCommand}" Classes="accentButton" Margin="10,0,0,0" Padding="25,10"/>
                     </Grid>
                 </Grid>
             </Border>
         </Grid>
 
-        <!-- Ventana superpuesta: Configuración general -->
-        <Grid Grid.ColumnSpan="3"
-              Background="rgba(0, 0, 0, 0.76)"
-              ZIndex="1000"
-              IsVisible="{Binding IsSettingsWindowOpen}"
-              PointerPressed="Overlay_PointerPressed">
-            <Border Classes="overlayBorder" Width="500" MinHeight="400" PointerPressed="Content_PointerPressed">
+        <!-- Ventanas de Texto (Historial y Legal) -->
+        <!-- Historial de Versiones -->
+        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="1002" IsVisible="{Binding UI.IsUpdateHistoryWindowOpen}" PointerPressed="Overlay_PointerPressed">
+            <Border Classes="overlayBorder" Width="700" MinHeight="600" PointerPressed="Content_PointerPressed">
                 <Grid RowDefinitions="Auto, *">
-                    <!-- Encabezado y navegación de pestañas -->
                     <StackPanel Grid.Row="0" Margin="20" Spacing="15">
-                        <TextBlock Text="Configuración" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-                        
+                        <TextBlock Text="{DynamicResource Update_Title}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
                         <Border Classes="toggleSwitchContainer" HorizontalAlignment="Center">
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                                <Border Grid.Column="{Binding SelectedSettingsTab, Converter={StaticResource SettingsTabToIndexConverter}}" Classes="toggleSwitchSlider"/>
-                                <Button Grid.Column="0" Content="General" Classes="toggleSwitchButton" Command="{Binding SelectSettingsTabCommand}" CommandParameter="General"/>
-                                <Button Grid.Column="1" Content="Acerca de" Classes="toggleSwitchButton" Command="{Binding SelectSettingsTabCommand}" CommandParameter="About"/>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Pestaña de configuración -->
-                    <StackPanel Grid.Row="1" Margin="20" Spacing="15" IsVisible="{Binding IsGeneralTabActive}">
-                        <TextBlock Text="Idioma" FontWeight="Bold" FontSize="16"/>
-                        <!-- General -->
-                        <StackPanel Orientation="Horizontal" Spacing="10"> 
-                            <!--
-                            <Button Content="Español" Classes="toggleButton active"/>
-                            <Button Content="English" Classes="toggleButton"/> 
-                            -->
-                        </StackPanel>
-                    </StackPanel>
-                    <!-- Acerca de -->
-                    <StackPanel Grid.Row="1" Margin="20" Spacing="20" IsVisible="{Binding IsAboutTabActive}">
-                        <Button Content="Historial de actualizaciones" Classes="linkButton" Command="{Binding OpenUpdateHistoryWindowCommand}"/>
-                        <Button Content="Políticas de privacidad" Classes="linkButton"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </Grid>
-        
-        <!-- Historial de actualizaciones -->
-        <Grid Grid.ColumnSpan="3"
-              Background="rgba(0, 0, 0, 0.76)"
-              ZIndex="1002"
-              IsVisible="{Binding IsUpdateHistoryWindowOpen}"
-              PointerPressed="Overlay_PointerPressed">
-            
-            <Border Classes="overlayBorder" Width="600" MinHeight="500" PointerPressed="Content_PointerPressed">
-                <Grid RowDefinitions="Auto,Auto,*">
-                    <Button Grid.Row="0" Classes="imageButton"
-                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Margin="10"
-                            Command="{Binding CloseUpdateHistoryWindowCommand}"> 
-                        <!--
-                        <Image Height="20" Width="20">
-                            <Image.Source>
-                                <svg:SvgImage Source="avares://Ada/Resources/Icons/eliminar.svg"/>
-                            </Image.Source>
-                        </Image>    
-                        -->
-                    </Button>
-                    <StackPanel Grid.Row="0" Margin="20" Spacing="15">
-                        <TextBlock Text="Historial de Actualizaciones" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-                        <Border Classes="toggleSwitchContainer" HorizontalAlignment="Center">
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                            <Grid ColumnDefinitions="*,*">
                                 <Border Grid.Column="{Binding SelectedUpdateHistoryTab, Converter={StaticResource UpdateHistoryTabToIndexConverter}}" Classes="toggleSwitchSlider"/>
-                                <Button Grid.Column="0" Content="App" Classes="toggleSwitchButton" Command="{Binding SelectUpdateHistoryTabCommand}" CommandParameter="App"/>
-                                <Button Grid.Column="1" Content="Servidor" Classes="toggleSwitchButton" Command="{Binding SelectUpdateHistoryTabCommand}" CommandParameter="Servidor"/>
+                                <Button Grid.Column="0" Content="{DynamicResource Update_Tab_App}" Classes="toggleSwitchButton" Command="{Binding SelectUpdateHistoryTabCommand}" CommandParameter="{x:Static const:TabNames.UpdateHistoryApp}"/>
+                                <Button Grid.Column="1" Content="{DynamicResource Update_Tab_Server}" Classes="toggleSwitchButton" Command="{Binding SelectUpdateHistoryTabCommand}" CommandParameter="{x:Static const:TabNames.UpdateHistoryServer}"/>
                             </Grid>
                         </Border>
                     </StackPanel>
-                    
-                    <ScrollViewer Grid.Row="2" Margin="20,0,20,20">
-                        <TextBlock Text="{Binding CurrentChangelogContent}" TextWrapping="Wrap" FontFamily="Monospace"/>
+                    <ScrollViewer Grid.Row="1" Margin="25">
+                        <views:MarkdownView Markdown="{Binding CurrentChangelogContent}"/>
                     </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>
 
-
-        <!-- ÁREA CENTRAL: CHAT Y ENTRADA DE USUARIO -->
-        <Grid Grid.Column="1" ZIndex="1" RowDefinitions="*, Auto" Margin="10,0">
-            <!-- Mensaje de bienvenida, visible solo cuando el chat está vacío -->
-            <Label Classes="welcomeText" Content="Hola, ¿cómo puedo ayudarte?" IsVisible="{Binding IsChatEmpty}"/>
-
-            <!-- Contenedor de los mensajes del chat -->
-            <ScrollViewer Name="ChatScrollViewer" Grid.Row="0" Margin="0,10,0,0">
-                <ItemsControl Name="ChatItemsControl" ItemsSource="{Binding ChatMessages}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="5" Orientation="Vertical"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </ScrollViewer>
-
-            <!-- Panel de entrada de texto y botones de acción -->
-            <StackPanel Grid.Row="1" Spacing="5" Margin="0,10">
-                <!-- Muestra los archivos adjuntos temporalmente antes de enviar el mensaje -->
-                <ItemsControl ItemsSource="{Binding TemporaryAttachedFiles}" IsVisible="{Binding TemporaryAttachedFiles.Count, Converter={StaticResource CountToVisibilityConverter}}" Height="40" Margin="10,0">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="5"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-
-                <Border Classes="inputBorder">
-                    <Grid RowDefinitions="*, Auto">
-                        <!-- Campo de texto para que el usuario escriba -->
-                        <TextBox Name="UserInputEditor" 
-                                 Grid.Row="0"
-                                 Text="{Binding UserInputText, Mode=TwoWay}"
-                                 Classes="inputEditor"/>
-                        <Grid Grid.Row="1" ColumnDefinitions="*, Auto">
-                            <!-- Botones izquierdos (Adjuntar, Modos) -->
-                            <StackPanel Grid.Column="0" Spacing="2" Orientation="Horizontal" HorizontalAlignment="Left">
-                                <Button Classes="imageButton inputAreaButton" ToolTip.Tip="Adjuntar archivos" Command="{Binding AttachFileCommand}">
-                                    <Image>
-                                        <Image.Source>
-                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/adjuntar.svg"/>
-                                        </Image.Source>
-                                    </Image>
-                                </Button>
-                                <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="Buscar en la web" Command="{Binding ToggleWebSearchModeCommand}" Classes.active="{Binding IsWebSearchModeActive}">
-                                    <Image>
-                                        <Image.Source>
-                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/buscar.svg"/>
-                                        </Image.Source>
-                                    </Image>
-                                </Button>
-                                <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="Modo rápido" Command="{Binding ToggleQuickModeCommand}" Classes.active="{Binding IsQuickModeActive}">
-                                    <Image>
-                                        <Image.Source>
-                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/rápido.svg"/>
-                                        </Image.Source>
-                                    </Image>
-                                </Button>
-                                <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="Modo razonamiento" Command="{Binding ToggleReasoningModeCommand}" Classes.active="{Binding IsReasoningModeActive}">
-                                    <Image>
-                                        <Image.Source>
-                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/razonar.svg"/>
-                                        </Image.Source>
-                                    </Image>
-                                </Button>
-                            </StackPanel>
-                            <!-- Botones derechos (Enviar, Dictado) -->
-                            <Button Classes="imageButton inputAreaButton"
-                                    Grid.Column="1" 
-                                    Margin="2,0,0,0" 
-                                    ToolTip.Tip="Enviar mensaje"
-                                    Command="{Binding SendMessageCommand}"
-                                    IsEnabled="{Binding IsUserInputEnabled}"
-                                    ClickMode="Release">
-                                <Image>
-                                    <Image.Source>
-                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/enviar.svg"/>
-                                    </Image.Source>
-                                </Image>
-                            </Button>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </StackPanel>
-        </Grid>
-
-        <!-- Indicador visual que aparece cuando se arrastran archivos sobre la ventana -->
-        <Border Name="DropZoneVisualIndicator" 
-                Grid.Column="1" 
-                Background="#400078D7" 
-                BorderBrush="#FF0078D7" 
-                BorderThickness="2" 
-                CornerRadius="10" 
-                Margin="10" 
-                IsVisible="False" 
-                IsHitTestVisible="False">
-            <TextBlock Text="Arrastra tus archivos aquí" Foreground="White" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Border>
-
-        <!-- PANEL DE INICIO DE SESIÓN -->
-        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="500" IsVisible="{Binding IsUserLoggedIn, Converter={StaticResource BooleanToVisibilityConverterInverted}}">
-            <Border Classes="overlayBorder">
-                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
-                    <TextBlock Text="{Binding AuthWindowTitle}"
-                               Foreground="{StaticResource TextColorBrush}"
-                               FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                               FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-
-                    <StackPanel Spacing="10" IsVisible="{Binding IsRegisterMode}">
-                        <Border Classes="authInputContainer">
-                            <TextBox Classes="authInput" Watermark="Usuario" Text="{Binding RegisterUsername}"/>
-                        </Border>
-                        <Border Classes="authInputContainer">
-                            <TextBox Classes="authInput" Watermark="Correo" Text="{Binding RegisterEmail}"/>
+        <!-- Documentación Legal -->
+        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="1003" IsVisible="{Binding UI.IsLegalWindowOpen}" PointerPressed="Overlay_PointerPressed">
+            <Border Classes="overlayBorder" Width="700" MinHeight="600" PointerPressed="Content_PointerPressed">
+                <Grid RowDefinitions="Auto, *">
+                    <StackPanel Grid.Row="0" Margin="20" Spacing="15">
+                        <TextBlock Text="{DynamicResource Legal_Title}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <Border Classes="toggleSwitchContainer" HorizontalAlignment="Center">
+                            <Grid ColumnDefinitions="*,*">
+                                <Border Grid.Column="{Binding SelectedLegalTab, Converter={StaticResource LegalTabToIndexConverter}}" Classes="toggleSwitchSlider"/>
+                                <Button Grid.Column="0" Content="{DynamicResource Legal_Tab_Privacy}" Classes="toggleSwitchButton" Command="{Binding SelectLegalTabCommand}" CommandParameter="{x:Static const:TabNames.LegalPrivacy}"/>
+                                <Button Grid.Column="1" Content="{DynamicResource Legal_Tab_Terms}" Classes="toggleSwitchButton" Command="{Binding SelectLegalTabCommand}" CommandParameter="{x:Static const:TabNames.LegalTerms}"/>
+                            </Grid>
                         </Border>
                     </StackPanel>
-                    <Border Classes="authInputContainer" IsVisible="{Binding !IsRegisterMode}">
-                        <TextBox Classes="authInput" Watermark="Usuario o Correo" Text="{Binding LoginIdentifier}"/>
-                    </Border>
-                    <Border Classes="authInputContainer">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0" 
-                                     Classes="authInput" 
-                                     Watermark="Contraseña"
-                                     PasswordChar="{Binding PasswordMaskChar}"
-                                     Text="{Binding Password}"/>
-                            <Button Grid.Column="1" Classes="imageButton" Command="{Binding TogglePasswordVisibilityCommand}" VerticalAlignment="Center" Margin="0,0,10,0">
-                                <Image Width="20" Height="20">
-                                    <Image.Source>
-                                        <svg:SvgImage Source="{Binding PasswordVisibilityIconPath}"/>
-                                    </Image.Source>
-                                </Image>
-                            </Button>
-                        </Grid>
-                    </Border>
-                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0">
-                        <Button Grid.Column="0"
-                                Content="{Binding AuthButtonText}"
-                                Command="{Binding SubmitAuthFormCommand}"
-                                Classes="accentButton" 
-                                HorizontalAlignment="Stretch"/>
-                        
-                        <Button Grid.Column="1"
-                                Content="¿Olvidaste la contraseña?"
-                                Classes="linkButton" 
-                                HorizontalAlignment="Right" 
-                                Command="{Binding OpenForgotPasswordCommand}"
-                                IsVisible="{Binding !IsRegisterMode}"/>
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center" Margin="0,15">
-                        <Border Grid.Column="0" Classes="separatorLine"/>
-                        <TextBlock Grid.Column="1" Text="o" Margin="10,0" Foreground="{StaticResource TextColorBrush}"/>
-                        <Border Grid.Column="2" Classes="separatorLine"/>
-                    </Grid>
-                    <Button Classes="imageButton loginButton" Command="{Binding LoginCommand}" HorizontalAlignment="Center">
-                        <Image>
-                            <Image.Source>
-                                <svg:SvgImage Source="avares://Ada/Resources/Icons/google_login.svg"/>
-                            </Image.Source>
-                        </Image>
-                    </Button>
-                    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" Margin="0,15,0,0">
-                        <TextBlock Text="{Binding AuthToggleQuestionText}"
-                                   Foreground="{StaticResource TextColorBrush}" VerticalAlignment="Center"/>
-                        <Button Content="{Binding AuthToggleActionText}"
-                                Classes="linkButton" Command="{Binding ToggleLoginRegisterCommand}"/>
-                    </StackPanel>
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsProcessingLogin}" Margin="0,10,0,0"/>
-                    <TextBlock Text="{Binding LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
-                </StackPanel>
+                    <ScrollViewer Grid.Row="1" Margin="25">
+                        <views:MarkdownView Markdown="{Binding CurrentLegalContent}"/>
+                    </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
-        
-        <!-- Panel de Correo para restablecimiento de contraseña -->
-        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="501" IsVisible="{Binding IsForgotPasswordViewOpen}">
-            <Border Classes="overlayBorder">
-                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
-                    <TextBlock Text="Restablecer Contraseña"
-                               Foreground="{StaticResource TextColorBrush}"
-                               FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                               FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
 
-                    <TextBlock Text="Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña."
-                               TextWrapping="Wrap" TextAlignment="Center"
-                               Foreground="{StaticResource TextColorBrush}" Margin="0,0,0,10"/>
+        <!-- ================================================================== -->
+        <!-- REGIÓN: ÁREA CENTRAL DE CHAT                                       -->
+        <!-- ================================================================== -->
+        <views:ChatArea Name="ChatAreaControl" Grid.Column="1"/>
 
-                    <Border Classes="authInputContainer">
-                        <TextBox Classes="authInput" Watermark="Correo electrónico" Text="{Binding ForgotPasswordEmail}"/>
-                    </Border>
-
-                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0">
-                        
-                        <Button Grid.Column="0"
-                                Content="Enviar Enlace"
-                                Command="{Binding SendPasswordResetLinkCommand}"
-                                Classes="accentButton" />
-
-                        <Button Grid.Column="2"
-                                Content="Volver a Inicio de Sesión"
-                                Command="{Binding CloseForgotPasswordCommand}"
-                                Classes="linkButton" 
-                                VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsProcessingLogin}" Margin="0,10,0,0"/>
-                    <TextBlock Text="{Binding LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
-                </StackPanel>
-            </Border>
-        </Grid>
-        
-        <!-- Panel de Restablecimiento de contraseña -->
-        <Grid Grid.ColumnSpan="3" Background="#AA000000" ZIndex="502" IsVisible="{Binding IsResetPasswordViewOpen}">
-            <Border Classes="overlayBorder">
-                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
-                    <TextBlock Text="Establecer Nueva Contraseña"
-                               Foreground="{StaticResource TextColorBrush}"
-                               FontFamily="avares://Ada/Resources/Fonts/Fredoka-Regular.ttf"
-                               FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-
-                    <TextBlock Text="Pega el token que recibiste por correo y elige tu nueva contraseña."
-                               TextWrapping="Wrap" TextAlignment="Center"
-                               Foreground="{StaticResource TextColorBrush}" Margin="0,0,0,10"/>
-
-                    <Border Classes="authInputContainer">
-                        <TextBox Classes="authInput" Watermark="Token de restablecimiento" Text="{Binding PasswordResetToken}"/>
-                    </Border>
-                    
-                    <Border Classes="authInputContainer">
-                        <TextBox Classes="authInput" 
-                                 Watermark="Nueva contraseña" 
-                                 PasswordChar="●"
-                                 Text="{Binding NewPassword}"/>
-                    </Border>
-
-                    <Button Content="Actualizar Contraseña"
-                            Command="{Binding SubmitResetPasswordCommand}"
-                            Classes="accentButton" 
-                            HorizontalAlignment="Stretch" 
-                            Margin="0,10,0,0"/>
-
-                    <Button Content="Volver a Inicio de Sesión"
-                            Command="{Binding CloseResetPasswordViewCommand}"
-                            Classes="linkButton" 
-                            HorizontalAlignment="Center" 
-                            Margin="0,10,0,0"/>
-
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsProcessingLogin}" Margin="0,10,0,0"/>
-                    <TextBlock Text="{Binding LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
-                </StackPanel>
-            </Border>
-        </Grid>
-        
-        <!-- PANEL DE ARCHIVOS ADJUNTOS EN ESTE CHAT -->
-        <Border Name="FilesPanelBorder" 
-                Grid.Column="2" 
-                Width="230" 
-                HorizontalAlignment="Right"
-                Background="#051923" 
-                BorderBrush="{StaticResource BorderColorBrush}" 
-                BorderThickness="1" 
-                CornerRadius="15"
-                Padding="5" 
-                Margin="0,10,10,10" 
-                ZIndex="10" 
-                PointerEntered="FilesPanel_PointerEntered" 
-                PointerExited="FilesPanel_PointerExited">
-            <Grid RowDefinitions="Auto, *">
-                <Label Grid.Row="0" Classes="panelTitle" Content="Archivos en este chat" HorizontalAlignment="Center"/>
-                <ScrollViewer Grid.Row="1">
-                    <ItemsControl ItemsSource="{Binding AttachedFiles}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="transparent" Padding="5" Margin="2" CornerRadius="5" MaxWidth="180">
-                                    <Grid ColumnDefinitions="Auto, *, Auto">
-                                        <Panel Grid.Column="0" Width="20" Height="20" Margin="0,0,5,0">
-                                            <Image Source="{Binding ImagePreviewSource}"
-                                                   IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}}"/>
-                                            <Image IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNull}">
-                                                <Image.Source>
-                                                    <svg:SvgImage Source="{Binding IconPath}"/>
-                                                </Image.Source>
-                                            </Image>
-                                        </Panel>
-                                        <TextBlock Grid.Column="1" Text="{Binding FileName}" Foreground="{StaticResource TextColorBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,5,0"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
+        <!-- Indicador de Drag & Drop -->
+        <Border Name="DropZoneVisualIndicator" Grid.Column="1" Background="#400078D7" BorderBrush="#FF0078D7" BorderThickness="2" CornerRadius="15" Margin="10" IsVisible="False" IsHitTestVisible="False">
+            <TextBlock Text="{DynamicResource DropZone_Text}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
 
-        <Panel Name="FilesTriggerArea" 
-               Grid.Column="2" 
-               Width="30" 
-               HorizontalAlignment="Right" 
-               Background="Transparent" 
-               ZIndex="5"
-               PointerEntered="FilesTriggerArea_PointerEntered" 
-               PointerExited="FilesTriggerArea_PointerExited"/>
+        <!-- Capa de Autenticación -->
+        <views:AuthView Grid.ColumnSpan="3" ZIndex="500"/>
+
+        <!-- Overlay de Imagen Fullscreen -->
+        <Grid Grid.ColumnSpan="3" ZIndex="2000" IsVisible="{Binding UI.IsImageFullscreenOpen}">
+            <Border Background="#F2000000" PointerPressed="Overlay_PointerPressed">
+                <Image Source="{Binding UI.FullscreenImage}" Stretch="Uniform" Margin="50"/>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

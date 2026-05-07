@@ -18,9 +18,9 @@ namespace AsistenteVirtual.ViewModels
         private bool _isSelected;
 
         /// <summary>
-        /// Obtiene el ID del hilo de OpenAI asociado a esta conversación.
+        /// Obtiene el ID de la conversación asociado.
         /// </summary>
-        public string ThreadId => _conversation.ThreadId;
+        public string ConversationId => _conversation.ConversationId;
 
         /// <summary>
         /// Obtiene o establece el título de la conversación, notificando a la UI de los cambios.
@@ -129,6 +129,9 @@ namespace AsistenteVirtual.ViewModels
         /// Obtiene el modelo de datos subyacente de la conversación.
         /// </summary>
         /// <returns>La instancia del modelo <see cref="Conversation"/>.</returns>
-        public Conversation GetModel() => _conversation;
+        public Conversation GetModel()
+        {
+            return _conversation;
+        }
     }
 }

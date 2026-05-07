@@ -1,72 +1,77 @@
 ﻿using AsistenteVirtual.Models;
 using System.Threading.Tasks;
 
-namespace AsistenteVirtual.Services
+namespace AsistenteVirtual.Services.Interfaces
 {
     /// <summary>
-    /// Define el contrato para un servicio de autenticación.
-    /// Abstrae la lógica de inicio de sesión, cierre de sesión y gestión del estado del usuario.
+    /// Define el contrato para la gestión de identidad, seguridad y ciclo de vida de la sesión del usuario.
     /// </summary>
+    /// <remarks>
+    /// Las implementaciones deben asegurar el manejo cifrado de tokens JWT y orquestar los flujos 
+    /// de OAuth2 Loopback necesarios para aplicaciones de escritorio.
+    /// </remarks>
     public interface IAuthService
     {
         /// <summary>
-        /// Obtiene el usuario actualmente autenticado en la aplicación.
-        /// Es nulo si no hay una sesión activa.
+        /// Obtiene el perfil del usuario autenticado actualmente en la sesión.
         /// </summary>
+        /// <value>Instancia de <see cref="User"/> o null si no hay una sesión activa.</value>
         User? CurrentUser { get; }
 
         /// <summary>
-        /// Inicia el flujo de autenticación interactivo a través del backend.
-        /// Este método orquestará la apertura del navegador y la recepción del token.
+        /// Inicia un proceso de inicio de sesión interactivo abriendo el navegador del sistema.
         /// </summary>
-        /// <returns>El objeto User si el inicio de sesión es exitoso; de lo contrario, null.</returns>
+        /// <returns>Tarea que resulta en el objeto <see cref="User"/> validado o null si el proceso fue cancelado.</returns>
         Task<User?> LoginAsync();
 
         /// <summary>
-        /// Registra un nuevo usuario con correo y contraseña.
+        /// Crea una nueva cuenta de usuario en el sistema mediante credenciales tradicionales.
         /// </summary>
-        /// <param name="username">El nombre de usuario elegido.</param>
-        /// <param name="email">El correo electrónico del usuario.</param>
-        /// <param name="password">La contraseña en texto plano.</param>
-        /// <returns>El objeto User si el registro y el inicio de sesión automático son exitosos; de lo contrario, null.</returns>
+        /// <param name="username">Nombre de usuario público deseado.</param>
+        /// <param name="email">Correo electrónico único para la cuenta.</param>
+        /// <param name="password">Contraseña en texto plano (será hasheada antes de viajar al servidor).</param>
+        /// <returns>Tarea que resulta en el objeto <see cref="User"/> recién creado.</returns>
         Task<User?> RegisterWithEmailAsync(string username, string email, string password);
 
         /// <summary>
-        /// Inicia sesión con un identificador (usuario o correo) y contraseña.
+        /// Autentica al usuario utilizando credenciales de correo y contraseña.
         /// </summary>
-        /// <param name="identifier">El nombre de usuario o correo.</param>
-        /// <param name="password">La contraseña.</param>
-        /// <returns>El objeto User si el inicio de sesión es exitoso; de lo contrario, null.</returns>
+        /// <param name="identifier">Nombre de usuario o dirección de correo electrónico.</param>
+        /// <param name="password">Contraseña de acceso.</param>
+        /// <returns>Tarea que resulta en el usuario autenticado o null si las credenciales son erróneas.</returns>
         Task<User?> LoginWithEmailAsync(string identifier, string password);
 
         /// <summary>
-        /// Solicita un enlace para restablecer la contraseña para un correo electrónico determinado.
+        /// Solicita al servidor el envío de un correo electrónico para la recuperación de la contraseña.
         /// </summary>
-        /// <param name="email">El correo electrónico del usuario que solicita el restablecimiento.</param>
+        /// <param name="email">El correo electrónico asociado a la cuenta que se desea recuperar.</param>
+        /// <returns>Tarea que representa la finalización de la petición de envío.</returns>
         Task RequestPasswordResetAsync(string email);
 
         /// <summary>
-        /// Intenta restaurar una sesión de usuario de forma silenciosa si existe un token guardado.
+        /// Intenta recuperar una sesión guardada localmente de forma segura sin intervención del usuario.
         /// </summary>
-        /// <returns>El objeto User si la restauración es exitosa; de lo contrario, null.</returns>
+        /// <returns>Tarea que resulta en el usuario si el token es válido; de lo contrario, null.</returns>
         Task<User?> SilentLoginAsync();
 
         /// <summary>
-        /// Cierra la sesión del usuario actual, invalidando el token local.
+        /// Finaliza la sesión actual y purga cualquier credencial sensible de la memoria y el almacenamiento persistente.
         /// </summary>
+        /// <returns>Tarea que representa la operación de cierre de sesión.</returns>
         Task LogoutAsync();
 
         /// <summary>
-        /// Obtiene el token de sesión (JWT) del usuario actual para autenticar peticiones al backend.
+        /// Recupera el token JWT de la sesión vigente para autorizar peticiones HTTP Bearer.
         /// </summary>
-        /// <returns>El token de sesión como un string, o null si el usuario no está autenticado.</returns>
+        /// <returns>Tarea que resulta en el string del token o null si no existe sesión activa.</returns>
         Task<string?> GetCurrentUserTokenAsync();
 
         /// <summary>
-        /// Envía un token de restablecimiento y una nueva contraseña al backend.
+        /// Actualiza la contraseña de una cuenta utilizando un token de seguridad recibido por correo.
         /// </summary>
-        /// <param name="token">El token JWT recibido por correo.</param>
+        /// <param name="token">Token JWT de un solo uso para el reseteo de contraseña.</param>
         /// <param name="newPassword">La nueva contraseña elegida por el usuario.</param>
+        /// <returns>Tarea que representa la operación de actualización.</returns>
         Task ResetPasswordAsync(string token, string newPassword);
     }
 }

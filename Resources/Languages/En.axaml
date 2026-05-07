@@ -1,0 +1,145 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:System="clr-namespace:System;assembly=mscorlib">
+    <x:String x:Key="Lang_Name">English</x:String>
+    
+    <x:String x:Key="Nav_Credits">Credits &amp; Subscriptions</x:String>
+    <x:String x:Key="Nav_Settings">Settings</x:String>
+    <x:String x:Key="Nav_Logout">Log Out</x:String>
+    <x:String x:Key="Nav_NewChat">New Conversation</x:String>
+    
+    <x:String x:Key="Settings_Title">Settings</x:String>
+    <x:String x:Key="Settings_Tab_General">General</x:String>
+    <x:String x:Key="Settings_Tab_About">About</x:String>
+    <x:String x:Key="Settings_Lbl_Language">Language</x:String>
+    <x:String x:Key="Settings_Lbl_Memories">Memories</x:String>
+    <x:String x:Key="Settings_Btn_ManageMemories">Read Ada's Journal</x:String>
+    <x:String x:Key="Settings_Btn_History">Update History</x:String>
+    <x:String x:Key="Settings_Btn_Privacy">Privacy Policy</x:String>
+
+    <x:String x:Key="Memories_Title">Ada's Journal</x:String>
+    <x:String x:Key="Memories_Subtitle">This is Ada's personal journal. You can tweak what she remembers about you here.</x:String>
+    <x:String x:Key="Memories_Placeholder">Add a new memory...</x:String>
+    <x:String x:Key="Memories_Btn_Save">Save Entry</x:String>
+
+    <x:String x:Key="Legal_Title">Legal Info</x:String>
+    <x:String x:Key="Legal_Tab_Privacy">Privacy</x:String>
+    <x:String x:Key="Legal_Tab_Terms">Terms</x:String>
+
+    <x:String x:Key="Update_Title">Update History</x:String>
+    <x:String x:Key="Update_Tab_App">App</x:String>
+    <x:String x:Key="Update_Tab_Server">Server</x:String>
+
+    <x:String x:Key="Auth_Title_Login">Welcome Back</x:String>
+    <x:String x:Key="Auth_Title_Register">Create an Account</x:String>
+    <x:String x:Key="Auth_Placeholder_User">Username</x:String>
+    <x:String x:Key="Auth_Placeholder_Email">Email</x:String>
+    <x:String x:Key="Auth_Placeholder_UserOrEmail">Username or Email</x:String>
+    <x:String x:Key="Auth_Placeholder_Password">Password</x:String>
+    <x:String x:Key="Auth_Btn_Login">Log In</x:String>
+    <x:String x:Key="Auth_Btn_Register">Sign Up</x:String>
+    <x:String x:Key="Auth_Link_Forgot">Forgot your password?</x:String>
+    <x:String x:Key="Auth_Lbl_NoAccount">Don't have an account?</x:String>
+    <x:String x:Key="Auth_Link_SignUp">Join now</x:String>
+    <x:String x:Key="Auth_Lbl_HasAccount">Already have an account?</x:String>
+    <x:String x:Key="Auth_Link_SignIn">Log in here</x:String>
+    <x:String x:Key="Auth_Or">or</x:String>
+    
+    <x:String x:Key="Reset_Title_Request">Reset Password</x:String>
+    <x:String x:Key="Reset_Subtitle_Request">Enter your email address and we'll send you a link to get back on track.</x:String>
+    <x:String x:Key="Reset_Btn_Send">Send Link</x:String>
+    <x:String x:Key="Reset_Btn_Back">Back to Login</x:String>
+    <x:String x:Key="Reset_Title_Set">Set New Password</x:String>
+    <x:String x:Key="Reset_Subtitle_Set">Paste the token from your email and pick a new password.</x:String>
+    <x:String x:Key="Reset_Placeholder_Token">Reset Token</x:String>
+    <x:String x:Key="Reset_Placeholder_NewPass">New Password</x:String>
+    <x:String x:Key="Reset_Btn_Update">Update Password</x:String>
+
+    <x:String x:Key="Store_Title">Ada's Store</x:String>
+    <x:String x:Key="Store_Tab_Subs">Subscriptions</x:String>
+    <x:String x:Key="Store_Tab_Credits">Credits</x:String>
+    <x:String x:Key="Store_Sub_Disclaimer">Unused credits roll over. Cancel anytime.</x:String>
+    <x:String x:Key="Store_Btn_Subscribe">Subscribe</x:String>
+    <x:String x:Key="Store_Section_Gen">Generation Packs (One-time)</x:String>
+    <x:String x:Key="Store_Desc_Gen">Best for images. These credits never expire.</x:String>
+    <x:String x:Key="Store_Btn_Buy">Buy Now</x:String>
+    <x:String x:Key="Store_Section_Chat">Chat Top-Ups (One-time)</x:String>
+    <x:String x:Key="Store_Desc_Chat">Running low? (Requires active subscription).</x:String>
+    <x:String x:Key="Store_Btn_TopUp">Top Up</x:String>
+    <x:String x:Key="Store_Credits">Credits</x:String>
+
+    <x:String x:Key="Plan_Name_Ess">Essential Plan</x:String>
+    <x:String x:Key="Plan_Price_Ess">$5.99 USD / mo</x:String>
+    <x:String x:Key="Plan_Creds_Ess">40,000 Credits</x:String>
+
+    <x:String x:Key="Plan_Name_Plus">Plus Plan</x:String>
+    <x:String x:Key="Plan_Price_Plus">$14.99 USD / mo</x:String>
+    <x:String x:Key="Plan_Creds_Plus">105,000 Credits</x:String>
+
+    <x:String x:Key="Plan_Name_Pro">Pro Plan</x:String>
+    <x:String x:Key="Plan_Price_Pro">$24.99 USD / mo</x:String>
+    <x:String x:Key="Plan_Creds_Pro">180,000 Credits</x:String>
+
+    <x:String x:Key="Pack_Name_Basic">Basic</x:String>
+    <x:String x:Key="Pack_Price_Basic">$4.99</x:String>
+    <x:String x:Key="Pack_Creds_Basic">35,000 Credits</x:String>
+
+    <x:String x:Key="Pack_Name_Pop">Popular</x:String>
+    <x:String x:Key="Pack_Price_Pop">$9.99</x:String>
+    <x:String x:Key="Pack_Creds_Pop">73,000 Credits</x:String>
+
+    <x:String x:Key="Pack_Name_Cre">Creator</x:String>
+    <x:String x:Key="Pack_Price_Cre">$19.99</x:String>
+    <x:String x:Key="Pack_Creds_Cre">150,000 Credits</x:String>
+
+    <x:String x:Key="Pack_Name_Stu">Studio</x:String>
+    <x:String x:Key="Pack_Price_Stu">$49.99</x:String>
+    <x:String x:Key="Pack_Creds_Stu">375,000 Credits</x:String>
+
+    <x:String x:Key="TopUp_Name_Imp">Boost</x:String>
+    <x:String x:Key="TopUp_Price_Imp">$4.99</x:String>
+    <x:String x:Key="TopUp_Creds_Imp">25,000 Credits</x:String>
+
+    <x:String x:Key="TopUp_Name_Sup">Supercharge</x:String>
+    <x:String x:Key="TopUp_Price_Sup">$9.99</x:String>
+    <x:String x:Key="TopUp_Creds_Sup">55,000 Credits</x:String>
+    
+    <x:String x:Key="Panel_History_Title">Conversations</x:String>
+    <x:String x:Key="Panel_Files_Title">Files in this chat</x:String>
+    <x:String x:Key="DropZone_Text">Drop your files here for me</x:String>
+
+    <x:String x:Key="Chat_Watermark">Ask me anything. I'm ready!</x:String>
+    <x:String x:Key="Chat_Welcome">Hi there! How can I help you today?</x:String>
+    
+    <x:String x:Key="Tip_Attach">Attach files for me</x:String>
+    <x:String x:Key="Tip_Web">I'll search the web</x:String>
+    <x:String x:Key="Tip_Quick">I'll be quick!</x:String>
+    <x:String x:Key="Tip_Reasoning">I'll use my full reasoning</x:String>
+    <x:String x:Key="Tip_Image">I'll create or edit an image</x:String>
+    <x:String x:Key="Tip_Mic">Dictate it!</x:String>
+    <x:String x:Key="Tip_Send">Send message</x:String>
+
+    <System:String x:Key="Store_Btn_Download">Download</System:String>
+    <System:String x:Key="Tip_ClickToZoom">Click to enlarge</System:String>
+
+    <System:String x:Key="Chat_Btn_Edit">Edit</System:String>
+    <System:String x:Key="Chat_Btn_Copy">Copy</System:String>
+    <System:String x:Key="Chat_Btn_Cancel">Cancel</System:String>
+    <System:String x:Key="Chat_Btn_Save">Send</System:String>
+
+    <x:String x:Key="Feat_Accumulable">Rollover</x:String>
+
+    <x:String x:Key="Msg_ProdUnknown">Product unknown.</x:String>
+    <x:String x:Key="Msg_LoginReq">You need to log in first.</x:String>
+    <x:String x:Key="Msg_PayError">Something went wrong starting the payment.</x:String>
+
+    <x:String x:Key="Status_CheckSession">Checking previous session...</x:String>
+    <x:String x:Key="Status_LoggingIn">Logging in...</x:String>
+    <x:String x:Key="Status_LoginCancelled">Login cancelled.</x:String>
+    <x:String x:Key="Status_FillFields">Please fill in all fields.</x:String>
+    <x:String x:Key="Status_CreatingAcc">Creating your account...</x:String>
+    <x:String x:Key="Status_RegFailed">Registration failed.</x:String>
+    <x:String x:Key="Status_NoCreds">Missing credentials.</x:String>
+    <x:String x:Key="Status_ResetSent">If the account exists, you'll get an email shortly.</x:String>
+    <x:String x:Key="Status_PassUpdated">Password updated successfully!</x:String>
+</ResourceDictionary>

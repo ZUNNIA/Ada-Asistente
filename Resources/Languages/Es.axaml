@@ -1,0 +1,145 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:System="clr-namespace:System;assembly=mscorlib">
+    <x:String x:Key="Lang_Name">Español</x:String>
+    
+    <x:String x:Key="Nav_Credits">Créditos y Suscripciones</x:String>
+    <x:String x:Key="Nav_Settings">Configuración</x:String>
+    <x:String x:Key="Nav_Logout">Cerrar Sesión</x:String>
+    <x:String x:Key="Nav_NewChat">Nueva Conversación</x:String>
+    
+    <x:String x:Key="Settings_Title">Configuración</x:String>
+    <x:String x:Key="Settings_Tab_General">General</x:String>
+    <x:String x:Key="Settings_Tab_About">Acerca de</x:String>
+    <x:String x:Key="Settings_Lbl_Language">Idioma</x:String>
+    <x:String x:Key="Settings_Lbl_Memories">Memorias</x:String>
+    <x:String x:Key="Settings_Btn_ManageMemories">Leer su diario</x:String>
+    <x:String x:Key="Settings_Btn_History">Historial de actualizaciones</x:String>
+    <x:String x:Key="Settings_Btn_Privacy">Políticas de privacidad</x:String>
+
+    <x:String x:Key="Memories_Title">Diario de Ada</x:String>
+    <x:String x:Key="Memories_Subtitle">Este es el diario personal de Ada, donde puedes modificar sus anotaciones sobre ti.</x:String>
+    <x:String x:Key="Memories_Placeholder">Añade una nueva anotación</x:String>
+    <x:String x:Key="Memories_Btn_Save">Guardar anotación</x:String>
+
+    <x:String x:Key="Legal_Title">Información Legal</x:String>
+    <x:String x:Key="Legal_Tab_Privacy">Privacidad</x:String>
+    <x:String x:Key="Legal_Tab_Terms">Términos</x:String>
+
+    <x:String x:Key="Update_Title">Historial de Actualizaciones</x:String>
+    <x:String x:Key="Update_Tab_App">App</x:String>
+    <x:String x:Key="Update_Tab_Server">Servidor</x:String>
+
+    <x:String x:Key="Auth_Title_Login">Iniciar Sesión</x:String>
+    <x:String x:Key="Auth_Title_Register">Crear una cuenta</x:String>
+    <x:String x:Key="Auth_Placeholder_User">Usuario</x:String>
+    <x:String x:Key="Auth_Placeholder_Email">Correo</x:String>
+    <x:String x:Key="Auth_Placeholder_UserOrEmail">Usuario o Correo</x:String>
+    <x:String x:Key="Auth_Placeholder_Password">Contraseña</x:String>
+    <x:String x:Key="Auth_Btn_Login">Iniciar Sesión</x:String>
+    <x:String x:Key="Auth_Btn_Register">Crear cuenta</x:String>
+    <x:String x:Key="Auth_Link_Forgot">¿Olvidaste la contraseña?</x:String>
+    <x:String x:Key="Auth_Lbl_NoAccount">¿No tienes una cuenta?</x:String>
+    <x:String x:Key="Auth_Link_SignUp">Regístrate</x:String>
+    <x:String x:Key="Auth_Lbl_HasAccount">¿Ya tienes una cuenta?</x:String>
+    <x:String x:Key="Auth_Link_SignIn">Inicia sesión</x:String>
+    <x:String x:Key="Auth_Or">o</x:String>
+    
+    <x:String x:Key="Reset_Title_Request">Restablecer Contraseña</x:String>
+    <x:String x:Key="Reset_Subtitle_Request">Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</x:String>
+    <x:String x:Key="Reset_Btn_Send">Enviar Enlace</x:String>
+    <x:String x:Key="Reset_Btn_Back">Volver a Inicio de Sesión</x:String>
+    <x:String x:Key="Reset_Title_Set">Establecer Nueva Contraseña</x:String>
+    <x:String x:Key="Reset_Subtitle_Set">Pega el token que recibiste por correo y elige tu nueva contraseña.</x:String>
+    <x:String x:Key="Reset_Placeholder_Token">Token de restablecimiento</x:String>
+    <x:String x:Key="Reset_Placeholder_NewPass">Nueva contraseña</x:String>
+    <x:String x:Key="Reset_Btn_Update">Actualizar Contraseña</x:String>
+
+    <x:String x:Key="Store_Title">Tienda de Ada</x:String>
+    <x:String x:Key="Store_Tab_Subs">Suscripciones</x:String>
+    <x:String x:Key="Store_Tab_Credits">Créditos</x:String>
+    <x:String x:Key="Store_Sub_Disclaimer">Los créditos no usados se acumulan. Cancela en cualquier momento.</x:String>
+    <x:String x:Key="Store_Btn_Subscribe">Suscribirse</x:String>
+    <x:String x:Key="Store_Section_Gen">Paquetes de Generación (Pago Único)</x:String>
+    <x:String x:Key="Store_Desc_Gen">Para imágenes. Los créditos nunca caducan.</x:String>
+    <x:String x:Key="Store_Btn_Buy">Comprar</x:String>
+    <x:String x:Key="Store_Section_Chat">Recargas de Chat (Pago Único)</x:String>
+    <x:String x:Key="Store_Desc_Chat">¿Te quedaste sin créditos? (Requiere suscripción activa).</x:String>
+    <x:String x:Key="Store_Btn_TopUp">Recargar</x:String>
+    <x:String x:Key="Store_Credits">Créditos</x:String>
+
+    <x:String x:Key="Plan_Name_Ess">Plan Escencial</x:String>
+    <x:String x:Key="Plan_Price_Ess">$5.99 USD / mes</x:String>
+    <x:String x:Key="Plan_Creds_Ess">40,000 Créditos</x:String>
+
+    <x:String x:Key="Plan_Name_Plus">Plan Plus</x:String>
+    <x:String x:Key="Plan_Price_Plus">$14.99 USD / mes</x:String>
+    <x:String x:Key="Plan_Creds_Plus">105,000 Créditos</x:String>
+
+    <x:String x:Key="Plan_Name_Pro">Plan Pro</x:String>
+    <x:String x:Key="Plan_Price_Pro">$24.99 USD / mes</x:String>
+    <x:String x:Key="Plan_Creds_Pro">180,000 Créditos</x:String>
+
+    <x:String x:Key="Pack_Name_Basic">Básico</x:String>
+    <x:String x:Key="Pack_Price_Basic">$4.99</x:String>
+    <x:String x:Key="Pack_Creds_Basic">35,000 Créditos</x:String>
+
+    <x:String x:Key="Pack_Name_Pop">Popular</x:String>
+    <x:String x:Key="Pack_Price_Pop">$9.99</x:String>
+    <x:String x:Key="Pack_Creds_Pop">73,000 Créditos</x:String>
+
+    <x:String x:Key="Pack_Name_Cre">Creador</x:String>
+    <x:String x:Key="Pack_Price_Cre">$19.99</x:String>
+    <x:String x:Key="Pack_Creds_Cre">150,000 Créditos</x:String>
+
+    <x:String x:Key="Pack_Name_Stu">Estudio</x:String>
+    <x:String x:Key="Pack_Price_Stu">$49.99</x:String>
+    <x:String x:Key="Pack_Creds_Stu">375,000 Créditos</x:String>
+
+    <x:String x:Key="TopUp_Name_Imp">Impulso</x:String>
+    <x:String x:Key="TopUp_Price_Imp">$4.99</x:String>
+    <x:String x:Key="TopUp_Creds_Imp">25,000 Créditos</x:String>
+
+    <x:String x:Key="TopUp_Name_Sup">Supercarga</x:String>
+    <x:String x:Key="TopUp_Price_Sup">$9.99</x:String>
+    <x:String x:Key="TopUp_Creds_Sup">55,000 Créditos</x:String>
+    
+    <x:String x:Key="Panel_History_Title">Conversaciones</x:String>
+    <x:String x:Key="Panel_Files_Title">Archivos en este chat</x:String>
+    <x:String x:Key="DropZone_Text">Arrástrame tus archivos aquí</x:String>
+
+    <x:String x:Key="Chat_Watermark">Pregunta lo que quieras, ¡Estoy lista!</x:String>
+    <x:String x:Key="Chat_Welcome">Hola, ¿cómo puedo ayudarte?</x:String>
+    
+    <x:String x:Key="Tip_Attach">Adjúntame archivos</x:String>
+    <x:String x:Key="Tip_Web">Buscaré en la web</x:String>
+    <x:String x:Key="Tip_Quick">¡Iré rápido!</x:String>
+    <x:String x:Key="Tip_Reasoning">Usaré toda mi inteligencia</x:String>
+    <x:String x:Key="Tip_Image">Crearé o editaré una imágen</x:String>
+    <x:String x:Key="Tip_Mic">¡Díctalo!</x:String>
+    <x:String x:Key="Tip_Send">Envíame el mensaje</x:String>
+
+    <System:String x:Key="Store_Btn_Download">Descargar</System:String>
+    <System:String x:Key="Tip_ClickToZoom">Clic para ampliar</System:String>
+    
+    <System:String x:Key="Chat_Btn_Edit">Editar</System:String>
+    <System:String x:Key="Chat_Btn_Copy">Copiar</System:String>
+    <System:String x:Key="Chat_Btn_Cancel">Cancelar</System:String>
+    <System:String x:Key="Chat_Btn_Save">Enviar</System:String>
+
+    <x:String x:Key="Feat_Accumulable">Acumulable</x:String>
+
+    <x:String x:Key="Msg_ProdUnknown">Producto desconocido.</x:String>
+    <x:String x:Key="Msg_LoginReq">Debes iniciar sesión.</x:String>
+    <x:String x:Key="Msg_PayError">Error al iniciar el pago.</x:String>
+
+    <x:String x:Key="Status_CheckSession">Comprobando sesión anterior...</x:String>
+    <x:String x:Key="Status_LoggingIn">Iniciando sesión...</x:String>
+    <x:String x:Key="Status_LoginCancelled">Inicio de sesión cancelado.</x:String>
+    <x:String x:Key="Status_FillFields">Completa todos los campos.</x:String>
+    <x:String x:Key="Status_CreatingAcc">Creando cuenta...</x:String>
+    <x:String x:Key="Status_RegFailed">El registro falló.</x:String>
+    <x:String x:Key="Status_NoCreds">Faltan credenciales.</x:String>
+    <x:String x:Key="Status_ResetSent">Si existe la cuenta, recibirás un correo.</x:String>
+    <x:String x:Key="Status_PassUpdated">¡Contraseña actualizada!</x:String>
+</ResourceDictionary>
