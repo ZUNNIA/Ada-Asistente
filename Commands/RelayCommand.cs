@@ -8,29 +8,22 @@ namespace AsistenteVirtual.Commands
 {
     /// <summary>
     /// Una implementación de ICommand para Avalonia que encapsula acciones como delegados.
-    /// Esta versión es compatible con operaciones asíncronas y utiliza el Dispatcher de Avalonia.
     /// </summary>
-    public class RelayCommand : ICommand
+    /// <remarks>
+    /// Inicializa una nueva instancia de la clase RelayCommand.
+    /// </remarks>
+    /// <param name="execute">La lógica de ejecución asíncrona del comando.</param>
+    /// <param name="canExecute">La lógica que determina si el comando puede ejecutarse.</param>
+    public class RelayCommand(Func<object?, Task> execute, Predicate<object?>? canExecute = null) : ICommand
     {
-        private readonly Func<object?, Task> _executeAsync;
-        private readonly Predicate<object?>? _canExecute;
+        private readonly Func<object?, Task> _executeAsync = execute ?? throw new ArgumentNullException(nameof(execute));
+        private readonly Predicate<object?>? _canExecute = canExecute;
 
         /// <summary>
         /// Evento que se dispara cuando cambia la condición que determina si el comando puede ejecutarse.
         /// En Avalonia, este evento se invoca manualmente llamando a RaiseCanExecuteChanged().
         /// </summary>
         public event EventHandler? CanExecuteChanged;
-
-        /// <summary>
-        /// Inicializa una nueva instancia de la clase RelayCommand.
-        /// </summary>
-        /// <param name="execute">La lógica de ejecución asíncrona del comando.</param>
-        /// <param name="canExecute">La lógica que determina si el comando puede ejecutarse.</param>
-        public RelayCommand(Func<object?, Task> execute, Predicate<object?>? canExecute = null)
-        {
-            _executeAsync = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
 
         /// <summary>
         /// Determina si el comando puede ejecutarse en su estado actual.
@@ -63,7 +56,7 @@ namespace AsistenteVirtual.Commands
         {
             await _executeAsync(parameter);
         }
-        
+
         /// <summary>
         /// Notifica a la UI que la condición de CanExecute ha cambiado y debe ser reevaluada.
         /// Esto permite habilitar o deshabilitar dinámicamente los controles enlazados al comando.

@@ -3,15 +3,25 @@
         xmlns:converters="using:AsistenteVirtual.Converters">
     <Style>
         <Style.Resources>
+            <!-- Convertidores de Lógica y Visibilidad -->
             <converters:BooleanToErrorBackgroundConverter x:Key="BooleanToErrorBackgroundConverter"/>
             <converters:BooleanToErrorBorderConverter x:Key="BooleanToErrorBorderConverter"/>
             <converters:BooleanToVisibilityConverterInverted x:Key="BooleanToVisibilityConverterInverted"/>
             <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <converters:StringEqualsConverter x:Key="StringEqualsConverter"/>
+            <converters:StringToSvgSourceConverter x:Key="StringToSvgSourceConverter"/>
+            <converters:UrlToBitmapConverter x:Key="UrlToBitmapConverter"/>
+
+            <!-- Convertidores de Chat y Roles -->
             <converters:RoleToAlignmentConverter x:Key="RoleToAlignmentConverter"/>
             <converters:RoleToBackgroundConverter x:Key="RoleToBackgroundConverter"/>
+
+            <!-- Convertidores de Pestañas -->
             <converters:SettingsTabToIndexConverter x:Key="SettingsTabToIndexConverter"/>
+            <converters:StoreTabToIndexConverter x:Key="StoreTabToIndexConverter"/>
             <converters:UpdateHistoryTabToIndexConverter x:Key="UpdateHistoryTabToIndexConverter"/>
+            <converters:LegalTabToIndexConverter x:Key="LegalTabToIndexConverter"/>
         </Style.Resources>
     </Style>
 </Styles>

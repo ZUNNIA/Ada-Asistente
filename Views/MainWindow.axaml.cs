@@ -1,442 +1,321 @@
-using Avalonia;
+using AsistenteVirtual.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using AsistenteVirtual.Services;
-using AsistenteVirtual.ViewModels;
-using Serilog;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System;
-using Avalonia.Media;
-using System.Threading;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using System.Threading;
+using AsistenteVirtual.Services.Interfaces;
 
 namespace AsistenteVirtual.Views
 {
     /// <summary>
-    /// La ventana principal de la aplicación.
-    /// Su responsabilidad es manejar interacciones puras de la UI y actuar como puente
-    /// para servicios que requieren una referencia a la ventana, como el StorageProvider.
+    /// Ventana principal de la aplicación. Orquesta la navegación global, las animaciones de los paneles laterales
+    /// y proporciona acceso a los servicios de almacenamiento del sistema operativo.
     /// </summary>
-    public partial class MainWindow : Window, IStorageService
+    /// <remarks>
+    /// Implementa <see cref="IStorageService"/> para permitir que los ViewModels soliciten archivos sin acoplarse a la API de Avalonia.
+    /// Utiliza un sistema de <see cref="DispatcherTimer"/> para gestionar el cierre retardado de paneles, mejorando la experiencia de usuario (UX).
+    /// </remarks>
+    public partial class MainWindow : Window, IStorageService, IDisposable
     {
-        // --- State Machine para gestionar el estado de los paneles ---
+        /// <summary>
+        /// Define los posibles estados de un panel lateral para controlar las animaciones.
+        /// </summary>
         private enum PanelState { Closed, Opening, Open, Closing }
         private PanelState _leftPanelState = PanelState.Closed;
         private PanelState _rightPanelState = PanelState.Closed;
 
-        // Temporizadores para el "debounce" (retraso) al salir del área
+        /// <summary>
+        /// Temporizador para retrasar el cierre del panel izquierdo cuando el puntero sale de su área de activación.
+        /// </summary>
         private readonly DispatcherTimer _leftCloseTimer;
+
+        /// <summary>
+        /// Temporizador para retrasar el cierre del panel derecho.
+        /// </summary>
         private readonly DispatcherTimer _rightCloseTimer;
 
-        // Tokens para cancelar animaciones en curso
+        /// <summary>
+        /// Token de cancelación para detener animaciones en curso del panel izquierdo si el usuario
+        /// realiza una nueva acción (ej. vuelve a entrar en el área antes de que se cierre).
+        /// </summary>
         private CancellationTokenSource? _leftAnimationCts;
+
+        /// <summary>
+        /// Token de cancelación para las animaciones del panel derecho.
+        /// </summary>
         private CancellationTokenSource? _rightAnimationCts;
-        
+
+        /// <summary>
+        /// Inicializa la ventana y configura los temporizadores de control de UI.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
-            // El DataContext se establecerá desde App.axaml.cs a través de la inyección de dependencias.
-            this.Opened += async (sender, args) =>
-            {
-                if (this.DataContext is MainViewModel vm)
-                {
-                    await vm.InitializeAsync();
-                }
-            };
-            // Asigna la transformación inicial
-            HistoryPanelBorder.RenderTransform = new TranslateTransform(-250, 0);
-            FilesPanelBorder.RenderTransform = new TranslateTransform(250, 0);
 
-            // --- Inicializa los DispatcherTimers ---
-            _leftCloseTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Background, OnLeftCloseTimerTick);
-            _leftCloseTimer.IsEnabled = false;
-            _rightCloseTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Background, OnRightCloseTimerTick);
-            _rightCloseTimer.IsEnabled = false;
-
-            // Suscribirse a eventos de la ventana
-            this.KeyDown += MainWindow_KeyDown;
-            Closing += MainWindow_Closing;
-            this.PointerExited += MainWindow_PointerExited;
-            AddHandler(DragDrop.DragEnterEvent, DragEnter);
-            AddHandler(DragDrop.DragLeaveEvent, DragLeave);
+            // Registro de evento Drop para la ventana completa
             AddHandler(DragDrop.DropEvent, Drop);
-        }
 
-        #region Animaciones de Paneles Laterales
-
-        /// <summary>
-        /// El director de orquesta de las animaciones. Este método construye y ejecuta
-        /// una animación de deslizamiento para cualquier control que se le pase.
-        /// Es el corazón de la fluidez de los paneles.
-        /// </summary>
-        /// <param name="control">El control visual (el panel) que se va a animar.</param>
-        /// <param name="targetX">La coordenada X final a la que el panel debe deslizarse.</param>
-        /// <param name="token">Un token de cancelación para detener la animación si se inicia una nueva.</param>
-        private async Task AnimatePanelAsync(Control control, double targetX, CancellationToken token)
-        {
-            var animation = new Animation
+            Opened += OnWindowOpened;
+            Closing += OnWindowClosing;
+            KeyDown += MainWindow_KeyDown;
+            PointerExited += (s, e) =>
             {
-                Duration = TimeSpan.FromMilliseconds(250),
-                Easing = new CubicEaseOut(),
-                // EL TRUCAZO:
-                // FillMode.Forward le dice a la animación que el estado final del control
-                // debe persistir después de que la animación termine. Esto evita que el panel
-                // "salte" de vuelta a su posición original al finalizar.
-                FillMode = FillMode.Forward
+                if (!_leftCloseTimer.IsEnabled) { _leftCloseTimer.Start(); }
+                if (!_rightCloseTimer.IsEnabled) { _rightCloseTimer.Start(); }
             };
-            animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(TranslateTransform.XProperty, targetX) } });
 
-            try
-            {
-                await animation.RunAsync(control, token);
-                // ¡VICTORIA!
-                // Como doble seguro, después de que la animación termine (si no fue cancelada),
-                // fuerza explícitamente el valor final en la propiedad. Esto elimina cualquier
-                // posible desincronización entre el motor de renderizado y el estado lógico del control.
-                if (!token.IsCancellationRequested && control.RenderTransform is TranslateTransform tt)
-                {
-                    tt.X = targetX;
-                }
-            }
-            catch (OperationCanceledException) 
-            { 
-                // Esto es normal. Si el usuario mueve el ratón rápidamente, cancela
-                // la animación anterior para empezar la nueva. Silencia la excepción.
-            }
+            // Configuración de temporizadores para el cierre suave de paneles laterales
+            _leftCloseTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Background, OnLeftCloseTimerTick) { IsEnabled = false };
+            _rightCloseTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(150), DispatcherPriority.Background, OnRightCloseTimerTick) { IsEnabled = false };
         }
 
-        // --- LÓGICA PARA EL PANEL IZQUIERDO ---
+        #region Implementación de IStorageService
 
         /// <summary>
-        /// Se activa cuando el ratón entra en el área de activación del panel izquierdo.
-        /// Su misión es iniciar el proceso para mostrar el panel.
+        /// Abre el diálogo del sistema operativo para que el usuario seleccione uno o más archivos.
         /// </summary>
-        private void HistoryTriggerArea_PointerEntered(object? sender, PointerEventArgs e)
+        /// <returns>
+        /// Una lista de solo lectura de objetos IStorageFile que representan los archivos seleccionados,
+        /// o null si el usuario cancela la operación.
+        /// </returns>
+        public async Task<IReadOnlyList<IStorageFile>?> PickMultipleFilesAsync()
         {
-            _leftCloseTimer.IsEnabled = false; // Detiene cualquier cierre pendiente.
-            if (_leftPanelState == PanelState.Closed || _leftPanelState == PanelState.Closing)
-            {
-                _leftAnimationCts?.Cancel();
-                _leftAnimationCts = new CancellationTokenSource();
-                _leftPanelState = PanelState.Opening;
-                _ = AnimatePanelAsync(HistoryPanelBorder, 0, _leftAnimationCts.Token)
-                    .ContinueWith(t => { if (t.IsCompletedSuccessfully) _leftPanelState = PanelState.Open; });
-            }
+            TopLevel? topLevel = GetTopLevel(this);
+            return topLevel == null
+                ? null
+                : await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Seleccionar Archivos", AllowMultiple = true });
         }
 
         /// <summary>
-        /// Se activa cuando el ratón entra en el propio panel izquierdo (que ya está visible).
-        /// Su única función es asegurarse de que el temporizador de cierre se detenga,
-        /// manteniendo el panel abierto mientras el cursor esté sobre él.
+        /// Lanza el selector de carpetas nativo.
         /// </summary>
-        private void HistoryPanel_PointerEntered(object? sender, PointerEventArgs e)
+        /// <returns>La carpeta seleccionada o null.</returns>
+        public async Task<IStorageFolder?> PickFolderAsync()
         {
-            _leftCloseTimer.IsEnabled = false;
-        }
-
-        /// <summary>
-        /// Se activa cuando el ratón sale del área de activación.
-        /// Inicia el temporizador que, tras un breve retraso, ocultará el panel.
-        /// </summary>
-        private void HistoryTriggerArea_PointerExited(object? sender, PointerEventArgs e)
-        {
-            _leftCloseTimer.IsEnabled = true;
-        }
-
-        /// <summary>
-        /// Se activa cuando el ratón sale del panel principal.
-        /// También inicia el temporizador para ocultar el panel.
-        /// </summary>
-        private void HistoryPanel_PointerExited(object? sender, PointerEventArgs e)
-        {
-            _leftCloseTimer.IsEnabled = true; 
-        }
-
-        /// <summary>
-        /// Se activa cuando el temporizador de cierre del panel izquierdo completa su cuenta atrás.
-        /// Confirma que el panel debe cerrarse y lanza la animación para ocultarlo.
-        /// </summary>
-        private void OnLeftCloseTimerTick(object? sender, EventArgs e)
-        {
-            _leftCloseTimer.IsEnabled = false;
-            if (_leftPanelState == PanelState.Open || _leftPanelState == PanelState.Opening)
-            {
-                _leftAnimationCts?.Cancel();
-                _leftAnimationCts = new CancellationTokenSource();
-                _leftPanelState = PanelState.Closing;
-                _ = AnimatePanelAsync(HistoryPanelBorder, -250, _leftAnimationCts.Token)
-                    .ContinueWith(t => { if (t.IsCompletedSuccessfully) _leftPanelState = PanelState.Closed; });
-            }
-        }
-
-        // --- LÓGICA PARA EL PANEL DERECHO ---
-        
-        private void FilesTriggerArea_PointerEntered(object? sender, PointerEventArgs e)
-        {
-            _rightCloseTimer.IsEnabled = false;
-            if (_rightPanelState == PanelState.Closed || _rightPanelState == PanelState.Closing)
-            {
-                _rightAnimationCts?.Cancel();
-                _rightAnimationCts = new CancellationTokenSource();
-                _rightPanelState = PanelState.Opening;
-                _ = AnimatePanelAsync(FilesPanelBorder, 0, _rightAnimationCts.Token)
-                    .ContinueWith(t => { if (t.IsCompletedSuccessfully) _rightPanelState = PanelState.Open; });
-            }
-        }
-
-        private void FilesPanel_PointerEntered(object? sender, PointerEventArgs e)
-        {
-            _rightCloseTimer.IsEnabled = false;
-        }
-
-        private void FilesTriggerArea_PointerExited(object? sender, PointerEventArgs e)
-        {
-            _rightCloseTimer.IsEnabled = true;
-        }
-
-        private void FilesPanel_PointerExited(object? sender, PointerEventArgs e)
-        {
-            _rightCloseTimer.IsEnabled = true;
-        }
-
-        private void OnRightCloseTimerTick(object? sender, EventArgs e)
-        {
-            _rightCloseTimer.IsEnabled = false;
-            if (_rightPanelState == PanelState.Open || _rightPanelState == PanelState.Opening)
-            {
-                _rightAnimationCts?.Cancel();
-                _rightAnimationCts = new CancellationTokenSource();
-                _rightPanelState = PanelState.Closing;
-                _ = AnimatePanelAsync(FilesPanelBorder, 250, _rightAnimationCts.Token)
-                    .ContinueWith(t => { if (t.IsCompletedSuccessfully) _rightPanelState = PanelState.Closed; });
-            }
-        }
-
-        // --- LÓGICA GENERAL ---
-
-        /// <summary>
-        /// Se activa cuando el puntero del ratón sale por completo de la ventana de la aplicación.
-        /// Es la última línea de defensa para asegurarse de que ambos paneles se oculten.
-        /// </summary>
-        private async void MainWindow_PointerExited(object? sender, PointerEventArgs e)
-        {
-            // Si el panel izquierdo está abierto o abriéndose, lo cierra.
-            if (_leftPanelState == PanelState.Open || _leftPanelState == PanelState.Opening)
-            {
-                _leftAnimationCts?.Cancel();
-                _leftAnimationCts = new CancellationTokenSource();
-                _leftPanelState = PanelState.Closing;
-                await AnimatePanelAsync(this.HistoryPanelBorder, -250, _leftAnimationCts.Token);
-                _leftPanelState = PanelState.Closed;
-            }
-
-            // Hace lo mismo con el panel derecho.
-            if (_rightPanelState == PanelState.Open || _rightPanelState == PanelState.Opening)
-            {
-                _rightAnimationCts?.Cancel();
-                _rightAnimationCts = new CancellationTokenSource();
-                _rightPanelState = PanelState.Closing;
-                await AnimatePanelAsync(this.FilesPanelBorder, 250, _rightAnimationCts.Token);
-                _rightPanelState = PanelState.Closed;
-            }
+            TopLevel? topLevel = GetTopLevel(this);
+            if (topLevel?.StorageProvider == null) { return null; }
+            IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Seleccionar Carpeta", AllowMultiple = false });
+            return folders.Count > 0 ? folders[0] : null;
         }
 
         #endregion
 
-        /// <summary>
-        /// Maneja el evento de pulsación de teclas en el editor de entrada principal.
-        /// Su propósito es capturar la tecla 'Enter' para enviar el mensaje.
-        /// </summary>
-        private void UserInputEditor_KeyDown(object? sender, KeyEventArgs e)
-        {
-            // EL TRUCAZO:
-            // Es importante comprobar si hay modificadores de teclado (como Shift).
-            // Queremos que 'Enter' envíe el mensaje, pero que 'Shift+Enter' siga
-            // permitiendo al usuario escribir un salto de línea, una funcionalidad
-            // estándar en la mayoría de aplicaciones de chat. Por eso la condición
-            // e.KeyModifiers != KeyModifiers.Shift es tan importante.
-            if (e.Key == Key.Enter && e.KeyModifiers != KeyModifiers.Shift)
-            {
-                // ¡VICTORIA!
-                // Al marcar el evento como "manejado" (e.Handled = true), le decimos
-                // a Avalonia: "La misión de esta tecla 'Enter' termina aquí". Esto evita
-                // que el control siga procesándola y añada un salto de línea no deseado.
-                e.Handled = true;
+        #region Manejadores de Animación y Timers
 
-                // Finalmente, se accede al comando del ViewModel y lo ejecuta.
-                if (DataContext is MainViewModel vm && vm.SendMessageCommand.CanExecute(null))
+        /// <summary>
+        /// Ejecuta el tick del temporizador para cerrar el panel izquierdo (Historial).
+        /// </summary>
+        private void OnLeftCloseTimerTick(object? sender, EventArgs e)
+        {
+            _leftCloseTimer.Stop();
+            HistoryPanel? panel = this.FindControl<HistoryPanel>("HistoryPanelControl");
+            if (panel != null && (_leftPanelState == PanelState.Open))
+            {
+                if (!panel.IsPointerOver)
                 {
-                    vm.SendMessageCommand.Execute(null);
+                    _leftAnimationCts?.Cancel();
+                    _leftAnimationCts = new CancellationTokenSource();
+                    _leftPanelState = PanelState.Closing;
+                    _ = AnimatePanelAsync(panel, -250, _leftAnimationCts.Token)
+                        .ContinueWith(_ => _leftPanelState = PanelState.Closed, TaskScheduler.FromCurrentSynchronizationContext());
                 }
             }
         }
 
         /// <summary>
-        /// Maneja el clic en el contenido de CUALQUIER diálogo flotante (Configuración, Suscripciones, etc.).
-        /// Su única función es marcar el evento como manejado, deteniendo la propagación
-        /// del clic para que no llegue al fondo y cierre la ventana.
+        /// Ejecuta el tick del temporizador para cerrar el panel derecho (Archivos).
+        /// </summary>
+        private void OnRightCloseTimerTick(object? sender, EventArgs e)
+        {
+            _rightCloseTimer.Stop();
+            FilesPanel? panel = this.FindControl<FilesPanel>("FilesPanelControl");
+            if (panel != null && !panel.IsPointerOver && _rightPanelState == PanelState.Open)
+            {
+                _rightAnimationCts?.Cancel();
+                _rightAnimationCts = new CancellationTokenSource();
+                _rightPanelState = PanelState.Closing;
+                _ = AnimatePanelAsync(panel, 250, _rightAnimationCts.Token).ContinueWith(_ => _rightPanelState = PanelState.Closed, TaskScheduler.FromCurrentSynchronizationContext());
+            }
+        }
+
+        /// <summary>
+        /// Orquesta la animación de transformación de un panel lateral.
+        /// </summary>
+        private static async Task AnimatePanelAsync(Control control, double targetX, CancellationToken token)
+        {
+            if (control.RenderTransform is not TranslateTransform)
+            {
+                control.RenderTransform = new TranslateTransform();
+            }
+
+            Animation animation = new()
+            {
+                Duration = TimeSpan.FromMilliseconds(250),
+                Easing = new CubicEaseOut(),
+                FillMode = FillMode.Forward,
+                Children = { new KeyFrame { Cue = new Cue(1), Setters = { new Setter(TranslateTransform.XProperty, targetX) } } }
+            };
+
+            try { await animation.RunAsync(control, token); } catch (OperationCanceledException) { }
+        }
+
+        #endregion
+
+        #region Eventos de Ventana y Drag & Drop
+
+        /// <summary>
+        /// Maneja la recepción de archivos soltados sobre cualquier área de la ventana principal.
+        /// </summary>
+        private async void Drop(object? sender, DragEventArgs e)
+        {
+            if (e.Data.Contains(DataFormats.Files) && DataContext is MainViewModel vm)
+            {
+                IEnumerable<IStorageItem>? items = e.Data.GetFiles();
+                if (items != null)
+                {
+                    await vm.ChatVM.HandleDroppedItemsAsync(items);
+                }
+            }
+        }
+
+        private async void OnWindowOpened(object? sender, EventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                await vm.InitializeAsync();
+            }
+        }
+
+        private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                await vm.CleanupOnExitAsync();
+            }
+        }
+
+        /// <summary>
+        /// Permite cerrar cualquier overlay activo presionando la tecla 'Escape'.
+        /// </summary>
+        private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && DataContext is MainViewModel vm)
+            {
+                // Si la imagen está abierta, la cerramos
+                if (vm.UI.IsImageFullscreenOpen)
+                {
+                    vm.UI.IsImageFullscreenOpen = false;
+                }
+                else
+                {
+                    vm.CloseActiveOverlayCommand.Execute(null);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cierra cualquier overlay activo (ventanas modales, flyouts) si se hace clic
+        /// en el fondo oscuro.
+        /// </summary>
+        private void Overlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.UI.IsImageFullscreenOpen = false; // Cierra la imagen
+                vm.CloseActiveOverlayCommand.Execute(null); // Cierra otros overlays
+            }
+        }
+
+        /// <summary>
+        /// Evita que un clic en el contenido de un overlay (como una ventana modal)
+        /// se propague al fondo y lo cierre.
         /// </summary>
         private void Content_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             e.Handled = true;
         }
 
-        /// <summary>
-        /// Maneja el clic en el overlay de fondo de CUALQUIER diálogo.
-        /// Este evento solo se dispara si el clic ocurre fuera del contenido del diálogo.
-        /// Comprueba qué ventana está abierta y ejecuta el comando de cierre correspondiente.
-        /// </summary>
-        private void Overlay_PointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (DataContext is not MainViewModel vm) return;
+        #endregion
 
-            // Comprueba qué ventana está abierta y ejecuta su comando de cierre
-            if (vm.IsSettingsFlyoutOpen && vm.CloseSettingsFlyoutCommand.CanExecute(null))
+        #region Control de Mouse para Paneles
+
+        private void HistoryTriggerArea_PointerEntered(object? sender, PointerEventArgs e)
+        {
+            _leftCloseTimer.Stop();
+            if (_leftPanelState is PanelState.Closed or PanelState.Closing)
             {
-                vm.CloseSettingsFlyoutCommand.Execute(null);
-            }
-            else if (vm.IsSettingsWindowOpen && vm.CloseSettingsWindowCommand.CanExecute(null))
-            {
-                vm.CloseSettingsWindowCommand.Execute(null);
-            }
-            else if (vm.IsSubscriptionsWindowOpen && vm.CloseSubscriptionsWindowCommand.CanExecute(null))
-            {
-                vm.CloseSubscriptionsWindowCommand.Execute(null);
-            }
-            else if (vm.IsUpdateHistoryWindowOpen && vm.CloseUpdateHistoryWindowCommand.CanExecute(null))
-            {
-                vm.CloseUpdateHistoryWindowCommand.Execute(null);
+                _leftAnimationCts?.Cancel();
+                _leftAnimationCts = new CancellationTokenSource();
+                _leftPanelState = PanelState.Opening;
+                HistoryPanel? panel = this.FindControl<HistoryPanel>("HistoryPanelControl");
+                if (panel != null)
+                {
+                    _ = AnimatePanelAsync(panel, 0, _leftAnimationCts.Token).ContinueWith(_ => _leftPanelState = PanelState.Open, TaskScheduler.FromCurrentSynchronizationContext());
+                }
             }
         }
 
-        /// <summary>
-        /// Maneja el evento de pulsación de teclas para toda la ventana.
-        /// Su principal función es detectar la tecla ESC para cerrar cualquier
-        /// diálogo o menú flotante que esté abierto actualmente.
-        /// </summary>
-        private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+        private void HistoryTriggerArea_PointerExited(object? sender, PointerEventArgs e)
         {
-            // Solo nos interesa la tecla Escape
-            if (e.Key == Key.Escape)
-            {
-                // Obtenemos una referencia al ViewModel para poder acceder a los comandos y estados
-                if (DataContext is not MainViewModel vm) return;
+            _leftCloseTimer.Start();
+        }
 
-                // Comproba en orden qué ventana flotante está activa y ejecuta
-                // su comando de cierre correspondiente. El orden no es crítico,
-                // pero un 'if-else if' asegura que solo se cierre una ventana por pulsación.
-                if (vm.IsSettingsFlyoutOpen && vm.CloseSettingsFlyoutCommand.CanExecute(null))
+        private void HistoryPanel_PointerEntered(object? sender, PointerEventArgs e)
+        {
+            _leftCloseTimer.Stop();
+        }
+
+        private void HistoryPanel_PointerExited(object? sender, PointerEventArgs e)
+        {
+            _leftCloseTimer.Start();
+        }
+
+        private void FilesTriggerArea_PointerEntered(object? sender, PointerEventArgs e)
+        {
+            _rightCloseTimer.Stop();
+            if (_rightPanelState is PanelState.Closed or PanelState.Closing)
+            {
+                _rightAnimationCts?.Cancel();
+                _rightAnimationCts = new CancellationTokenSource();
+                _rightPanelState = PanelState.Opening;
+                FilesPanel? panel = this.FindControl<FilesPanel>("FilesPanelControl");
+                if (panel != null)
                 {
-                    vm.CloseSettingsFlyoutCommand.Execute(null);
-                }
-                else if (vm.IsResetPasswordViewOpen && vm.CloseResetPasswordViewCommand.CanExecute(null))
-                {
-                    vm.CloseResetPasswordViewCommand.Execute(null);
-                }
-                else if (vm.IsForgotPasswordViewOpen && vm.CloseForgotPasswordCommand.CanExecute(null))
-                {
-                    vm.CloseForgotPasswordCommand.Execute(null);
-                }
-                else if (vm.IsSettingsWindowOpen && vm.CloseSettingsWindowCommand.CanExecute(null))
-                {
-                    vm.CloseSettingsWindowCommand.Execute(null);
-                }
-                else if (vm.IsSubscriptionsWindowOpen && vm.CloseSubscriptionsWindowCommand.CanExecute(null))
-                {
-                    vm.CloseSubscriptionsWindowCommand.Execute(null);
+                    _ = AnimatePanelAsync(panel, 0, _rightAnimationCts.Token).ContinueWith(_ => _rightPanelState = PanelState.Open, TaskScheduler.FromCurrentSynchronizationContext());
                 }
             }
         }
-        
-        /// <summary>
-        /// Manejador del evento de cierre de la ventana.
-        /// Se asegura de que se ejecute una limpieza final antes de que la app se cierre.
-        /// </summary>
-        private async void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
+
+        private void FilesTriggerArea_PointerExited(object? sender, PointerEventArgs e)
         {
-            if (DataContext is MainViewModel vm) { }
-            await Task.CompletedTask;
+            _rightCloseTimer.Start();
         }
-        #region Implementación de IStorageService
 
-        /// <summary>
-        /// Implementación del método de la interfaz para abrir el selector de archivos.
-        /// </summary>
-        public async Task<IReadOnlyList<IStorageFile>?> PickMultipleFilesAsync()
+        private void FilesPanel_PointerEntered(object? sender, PointerEventArgs e)
         {
-            // Obtiene el StorageProvider del TopLevel de la ventana actual.
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel == null) return null;
+            _rightCloseTimer.Stop();
+        }
 
-            return await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Seleccionar Archivos",
-                AllowMultiple = true
-            });
+        private void FilesPanel_PointerExited(object? sender, PointerEventArgs e)
+        {
+            _rightCloseTimer.Start();
         }
 
         #endregion
 
-        #region Lógica de Drag and Drop
-
-        private void DragEnter(object? sender, DragEventArgs e)
+        public void Dispose()
         {
-            // Este es el primer punto de control. Si este log no aparece
-            // cuando arrastras un archivo sobre la ventana, significa que Avalonia
-            // o el sistema operativo no están ni siquiera notificando a la app.
-            Log.Information("[DragDrop] Evento DragEnter detectado.");
-
-            if (e.Data.Contains(DataFormats.Files))
-            {
-                Log.Information("[DragDrop] DragEnter confirma que se están arrastrando archivos. Mostrando indicador.");
-                DropZoneVisualIndicator.IsVisible = true;
-            }
-            else
-            {
-                Log.Warning("[DragDrop] DragEnter detectado, pero no contiene datos en el formato de archivo esperado.");
-            }
+            _leftAnimationCts?.Dispose();
+            _rightAnimationCts?.Dispose();
+            GC.SuppressFinalize(this);
         }
-
-        private void DragLeave(object? sender, DragEventArgs e)
-        {
-            // Oculta el indicador visual.
-            Log.Information("[DragDrop] Evento DragLeave detectado. Ocultando indicador.");
-            DropZoneVisualIndicator.IsVisible = false;
-        }
-
-        private async void Drop(object? sender, DragEventArgs e)
-        {
-            Log.Information("[DragDrop] ¡Evento Drop detectado! El usuario ha soltado los archivos.");
-            DropZoneVisualIndicator.IsVisible = false;
-            
-            // EL TRUCAZO:
-            // e.Data.GetFiles() nos devuelve una lista de IStorageItem.
-            // Usa LINQ con .OfType<IStorageFile>() para filtrar elegantemente esa
-            // lista y quedarnos solo con los elementos que son realmente archivos.
-            // Así se asegura de pasarle al ViewModel exactamente el tipo de lista que espera.
-            var files = e.Data.GetFiles()?.OfType<IStorageFile>().ToList();
-
-            if (files != null && files.Any() && DataContext is MainViewModel vm)
-            {
-                Log.Information("[DragDrop] {Count} archivo(s) válidos. Pasando la batuta al MainViewModel.", files.Count);
-                // ¡VICTORIA!
-                // Ahora la comunicación es perfecta. La Vista ha hecho su trabajo de
-                // pre-filtrado y le entrega al Director una lista limpia y correcta.
-                await Task.Run(() => vm.HandleDroppedFilesAsync(files));
-            }
-            else
-            {
-                Log.Warning("[DragDrop] Evento Drop, pero no se encontraron archivos válidos o el ViewModel no está disponible.");
-            }
-        }
-
-        #endregion
     }
 }

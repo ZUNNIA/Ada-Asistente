@@ -1,0 +1,168 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:vm="using:AsistenteVirtual.ViewModels"
+            xmlns:i="using:Avalonia.Xaml.Interactivity"
+            xmlns:ia="using:Avalonia.Xaml.Interactions.Core"
+            xmlns:svg="using:Avalonia.Svg.Skia"
+            mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+            x:Class="AsistenteVirtual.Views.AuthView"
+            x:DataType="vm:MainViewModel">
+
+    <Panel>
+        <!-- Panel de Inicio de sesión -->
+        <Grid Background="#AA000000" ZIndex="500" IsVisible="{Binding IsUserLoggedIn, Converter={StaticResource BooleanToVisibilityConverterInverted}}">
+            <Border Classes="overlayBorder">
+                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
+                    <TextBlock Text="{Binding AuthVM.AuthWindowTitle}"
+                                Foreground="{StaticResource TextPrimaryBrush}"
+                                FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                    <StackPanel Spacing="10" IsVisible="{Binding AuthVM.IsRegisterMode}">
+                        <Border Classes="authInputContainer">
+                            <TextBox Classes="authInput" Watermark="{DynamicResource Auth_Placeholder_User}" Text="{Binding AuthVM.RegisterUsername}"/>
+                        </Border>
+                        <Border Classes="authInputContainer">
+                            <TextBox Classes="authInput" Watermark="{DynamicResource Auth_Placeholder_Email}" Text="{Binding AuthVM.RegisterEmail}"/>
+                        </Border>
+                    </StackPanel>
+                    <Border Classes="authInputContainer" IsVisible="{Binding !AuthVM.IsRegisterMode}">
+                        <TextBox Classes="authInput" Watermark="{DynamicResource Auth_Placeholder_UserOrEmail}" Text="{Binding AuthVM.LoginIdentifier}"/>
+                    </Border>
+                    <Border Classes="authInputContainer">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" 
+                                    Classes="authInput" 
+                                    Watermark="{DynamicResource Auth_Placeholder_Password}"
+                                    PasswordChar="{Binding AuthVM.PasswordMaskChar}"
+                                    Text="{Binding AuthVM.Password}"/>
+                            <Button Grid.Column="1" Classes="imageButton" Command="{Binding AuthVM.TogglePasswordVisibilityCommand}" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Image Width="20" Height="20">
+                                    <Image.Source>
+                                        <svg:SvgImage Source="{Binding AuthVM.PasswordVisibilityIconPath}" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Button Content="{Binding AuthVM.AuthButtonText}"
+                                Command="{Binding AuthVM.SubmitAuthFormCommand}"
+                                Classes="accentButton"
+                                HorizontalAlignment="Stretch"/>
+
+                        <Button Content="{DynamicResource Auth_Link_Forgot}"
+                                Classes="linkButton"
+                                HorizontalAlignment="Center"
+                                Command="{Binding OpenForgotPasswordCommand}"
+                                IsVisible="{Binding !AuthVM.IsRegisterMode}"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center" Margin="0,15">
+                        <Border Grid.Column="0" Classes="separatorLine"/>
+                        <TextBlock Grid.Column="1" Text="{DynamicResource Auth_Or}" Margin="10,0" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <Border Grid.Column="2" Classes="separatorLine"/>
+                    </Grid>
+                    <Button Classes="imageButton loginButton" Command="{Binding AuthVM.LoginCommand}" HorizontalAlignment="Center">
+                        <Image>
+                            <Image.Source>
+                                <svg:SvgImage Source="avares://Ada/Resources/Icons/auth_google.svg"/>
+                            </Image.Source>
+                        </Image>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" Margin="0,15,0,0">
+                        <TextBlock Text="{Binding AuthVM.AuthToggleQuestionText}"
+                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <Button Content="{Binding AuthVM.AuthToggleActionText}"
+                                Classes="linkButton" Command="{Binding AuthVM.ToggleLoginRegisterCommand}"/>
+                    </StackPanel>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding AuthVM.IsProcessingLogin}" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding AuthVM.LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding AuthVM.LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+        
+        <!-- Panel de Correo para restablecimiento de contraseña -->
+        <Grid Background="#AA000000" ZIndex="501" IsVisible="{Binding UI.IsForgotPasswordViewOpen}">
+            <Border Classes="overlayBorder">
+                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
+                    <TextBlock Text="{DynamicResource Reset_Title_Request}"
+                                Foreground="{StaticResource TextPrimaryBrush}"
+                                FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                    <TextBlock Text="{DynamicResource Reset_Subtitle_Request}"
+                                TextWrapping="Wrap" TextAlignment="Center"
+                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+
+                    <Border Classes="authInputContainer">
+                        <TextBox Classes="authInput" Watermark="{DynamicResource Auth_Placeholder_Email}" Text="{Binding AuthVM.ForgotPasswordEmail}"/>
+                    </Border>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0">
+                        
+                        <Button Grid.Column="0"
+                                Content="{DynamicResource Reset_Btn_Send}"
+                                Command="{Binding AuthVM.SendPasswordResetLinkCommand}"
+                                Classes="accentButton" />
+
+                        <Button Grid.Column="2"
+                                Content="{DynamicResource Reset_Btn_Back}"
+                                Command="{Binding CloseForgotPasswordCommand}"
+                                Classes="linkButton" 
+                                VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding AuthVM.IsProcessingLogin}" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding AuthVM.LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding AuthVM.LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+        
+        <!-- Panel de Restablecimiento de contraseña -->
+        <Grid Background="#AA000000" ZIndex="502" IsVisible="{Binding UI.IsResetPasswordViewOpen}">
+            <i:Interaction.Behaviors>
+                <ia:EventTriggerBehavior EventName="PointerPressed">
+                    <ia:InvokeCommandAction Command="{Binding CloseResetPasswordViewCommand}" />
+                </ia:EventTriggerBehavior>
+            </i:Interaction.Behaviors>
+            <Border Classes="overlayBorder">
+                <StackPanel Spacing="15" VerticalAlignment="Center" Margin="20">
+                    <TextBlock Text="{DynamicResource Reset_Title_Set}"
+                                Foreground="{StaticResource TextPrimaryBrush}"
+                                FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                    <TextBlock Text="{DynamicResource Reset_Subtitle_Set}"
+                                TextWrapping="Wrap" TextAlignment="Center"
+                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+
+                    <Border Classes="authInputContainer">
+                        <TextBox Classes="authInput" Watermark="{DynamicResource Reset_Placeholder_Token}" Text="{Binding AuthVM.PasswordResetToken}"/>
+                    </Border>
+                    
+                    <Border Classes="authInputContainer">
+                        <TextBox Classes="authInput" 
+                                Watermark="{DynamicResource Reset_Placeholder_NewPass}" 
+                                PasswordChar="●"
+                                Text="{Binding AuthVM.NewPassword}"/>
+                    </Border>
+
+                    <Button Content="{DynamicResource Reset_Btn_Update}"
+                            Command="{Binding AuthVM.SubmitResetPasswordCommand}"
+                            Classes="accentButton" 
+                            HorizontalAlignment="Stretch" 
+                            Margin="0,10,0,0"/>
+
+                    <Button Content="{DynamicResource Reset_Btn_Back}"
+                            Command="{Binding CloseResetPasswordViewCommand}"
+                            Classes="linkButton" 
+                            HorizontalAlignment="Center" 
+                            Margin="0,10,0,0"/>
+
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding AuthVM.IsProcessingLogin}" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding AuthVM.LoginStatusMessage}" Foreground="LightCoral" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding AuthVM.LoginStatusMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Panel>
+</UserControl>

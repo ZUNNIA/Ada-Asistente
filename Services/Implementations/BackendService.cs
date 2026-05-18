@@ -1,4 +1,6 @@
 using AsistenteVirtual.Models;
+using AsistenteVirtual.Services.Interfaces;
+using MessagePack;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -6,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,474 +15,451 @@ using System.Threading.Tasks;
 
 namespace AsistenteVirtual.Services.Implementations
 {
-    public class BackendService : IBackendService
+    /// <summary>
+    /// Servicio de infraestructura central que actúa como túnel de comunicación entre el cliente C# y el ecosistema de microservicios en Google Cloud Run.
+    /// </summary>
+    /// <remarks>
+    /// Implementa un patrón de Fachada (Facade) para consolidar operaciones de hilos de conversación, persistencia de archivos, 
+    /// gestión de perfiles de usuario y pasarelas de pago. Utiliza una instancia única de <see cref="HttpClient"/> optimizada para 
+    /// conexiones de larga duración requeridas por los modelos de IA generativa.
+    /// </remarks>
+    public class BackendService : IConversationService, IFileStorageService, IUserService, IPaymentService
     {
-        private readonly HttpClient _httpClient = new HttpClient();
-        private const string ProcessMessageUrl = "https://process-message-802177958692.us-south1.run.app";
-        private const string UploadFileUrl = "https://upload-file-802177958692.us-south1.run.app";
+        private readonly HttpClient _httpClient;
+        private readonly JsonSerializerOptions _jsonOptions;
+
+        // --- Configuración de Entorno ---
+        private const string _environment = "staging";
+
+        private static readonly Dictionary<string, string> _processMessageUrls = new()
+        {
+            { "staging", "https://process-message-staging-24416219573.us-south1.run.app" },
+            { "production", "https://process-message-prodution-24416219573.us-south1.run.app" }
+        };
+        private static readonly Dictionary<string, string> _uploadFileUrls = new()
+        {
+            { "staging", "https://upload-file-staging-24416219573.us-south1.run.app" },
+            { "production", "https://upload-file-production-24416219573.us-south1.run.app" }
+        };
+        private static readonly Dictionary<string, string> _paymentServiceUrls = new()
+        {
+            { "staging", "https://payment-service-staging-PLACEHOLDER.run.app" },
+            { "production", "https://payment-service-prod-PLACEHOLDER.run.app" }
+        };
 
         /// <summary>
-        /// Inicia una conexión de streaming con el backend para recibir la respuesta de la IA.
-        /// Este método se conecta al endpoint HTTP, gestiona los errores de conexión inicial
-        /// y luego delega la lectura del stream a un método auxiliar para manejar el flujo
-        /// de datos de manera asíncrona sin bloquear el hilo principal.
+        /// Configuración global de serialización para MessagePack.
         /// </summary>
-        /// <param name="userToken">El token de autenticación de Google del usuario.</param>
-        /// <param name="userInput">El texto ingresado por el usuario.</param>
-        /// <param name="mode">El modo de operación (ej. "QuickMode").</param>
-        /// <param name="threadId">El ID de la conversación actual, si existe.</param>
-        /// <param name="fileIds">La lista de IDs de archivos de OpenAI que se han subido.</param>
-        /// <returns>Un stream asíncrono (IAsyncEnumerable) de objetos StreamedBackendResponse,
-        /// donde cada objeto puede ser un trozo de texto o un evento de finalización.</returns>
-        public async IAsyncEnumerable<StreamedBackendResponse> StreamMessageToBackendAsync(string userToken, string userInput, string mode, string? threadId, List<string> fileIds, string? vectorStoreId)
+        /// <remarks>
+        /// Utiliza un resolvedor compuesto que permite manejar Enums como strings y tipos sin atributos explícitos, 
+        /// facilitando la interoperabilidad con los microservicios de Python.
+        /// </remarks>
+        private static readonly MessagePackSerializerOptions s_msgPackOptions = MessagePackSerializerOptions.Standard
+            .WithResolver(MessagePack.Resolvers.CompositeResolver.Create(
+                MessagePack.Resolvers.DynamicEnumAsStringResolver.Instance,
+                MessagePack.Resolvers.StandardResolver.Instance,
+                MessagePack.Resolvers.ContractlessStandardResolver.Instance
+            ));
+
+        private readonly string _processMessageUrl;
+        private readonly string _uploadFileUrl;
+        private readonly string _paymentServiceUrl;
+
+        /// <summary>
+        /// Inicializa una nueva instancia del servicio de backend con una configuración de red optimizada.
+        /// </summary>
+        /// <param name="httpClient">Instancia de <see cref="HttpClient"/> inyectada, configurada preferiblemente mediante IHttpClientFactory.</param>
+        public BackendService(HttpClient httpClient)
         {
-            // 1. Prepara los datos que se envian al backend en formato JSON.
+            _httpClient = httpClient;
+            _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Incremento del timeout para soportar latencias altas de modelos de razonamiento (Thinking Mode).
+
+            if (_httpClient.Timeout < TimeSpan.FromMinutes(5))
+            {
+                _httpClient.Timeout = TimeSpan.FromMinutes(10);
+            }
+
+            _processMessageUrl = _processMessageUrls[_environment];
+            _uploadFileUrl = _uploadFileUrls[_environment];
+            _paymentServiceUrl = _paymentServiceUrls[_environment];
+        }
+
+        #region IConversationService Implementation
+
+        /// <summary>
+        /// Recupera la lista de metadatos de las conversaciones activas del usuario desde Firestore.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión para autorización Bearer.</param>
+        /// <returns>Una tarea que resulta en una colección de <see cref="Conversation"/>.</returns>
+        /// <exception cref="HttpRequestException">Se lanza si ocurre un error de red o el servidor responde con un código de error.</exception>
+        public async Task<List<Conversation>> GetConversationsAsync(string userToken)
+        {
+            var requestData = new { action = "get_conversations" };
+            ConversationsListResponse response = await PostAndDeserializeAsync<ConversationsListResponse>(userToken, requestData, _processMessageUrl);
+            return response.Conversations;
+        }
+
+        /// <summary>
+        /// Obtiene todos los mensajes de una conversación específica ordenados cronológicamente.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="conversationId">ID único del hilo de conversación en el backend.</param>
+        /// <returns>Lista de objetos <see cref="ChatMessage"/>.</returns>
+        public async Task<List<ChatMessage>> GetMessagesAsync(string userToken, string conversationId)
+        {
+            var requestData = new { action = "get_messages", conversation_id = conversationId };
+            MessagesListResponse response = await PostAndDeserializeAsync<MessagesListResponse>(userToken, requestData, _processMessageUrl);
+            return response.Messages;
+        }
+
+        /// <summary>
+        /// Persiste o actualiza los metadatos globales de una conversación (título, archivos asociados, estado).
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="conversation">Instancia de la conversación con los datos actualizados.</param>
+        /// <returns>La instancia de <see cref="Conversation"/> tal como se guardó en el servidor.</returns>
+        public async Task<Conversation> SaveConversationMetadataAsync(string userToken, Conversation conversation)
+        {
+            if (string.IsNullOrWhiteSpace(conversation.ConversationId))
+            {
+                Log.Error("[BackendService] Intento de guardar metadatos de una conversación sin ID.");
+                throw new InvalidOperationException("No se puede guardar una conversación que no tiene un ID asignado.");
+            }
+
+            var requestData = new { action = "save_conversation_metadata", conversation };
+            return await PostAndDeserializeAsync<Conversation>(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Guarda un mensaje individual en la subcolección de mensajes de una conversación.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="conversationId">ID de la conversación destino.</param>
+        /// <param name="message">El mensaje a persistir.</param>
+        public async Task SaveMessageAsync(string userToken, string conversationId, ChatMessage message)
+        {
+            var requestData = new { action = "save_message", conversation_id = conversationId, message };
+            await PostAsync(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Elimina físicamente una conversación y purga sus recursos asociados en Firestore y Storage.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="conversationId">ID de la conversación a eliminar.</param>
+        public async Task DeleteConversationAsync(string userToken, string conversationId)
+        {
+            var requestData = new { action = "delete_conversation", conversation_id = conversationId };
+            await PostAsync(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Crea una entrada de conversación vacía en el backend para permitir operaciones previas al chat (como subida de archivos).
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <returns>Una nueva <see cref="Conversation"/> inicializada.</returns>
+        public async Task<Conversation> PrewarmConversationAsync(string userToken)
+        {
+            var requestData = new { action = "prewarm_conversation" };
+            return await PostAndDeserializeAsync<Conversation>(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Establece una conexión de flujo (Streaming) con el backend para recibir respuestas de IA en tiempo real.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="userInput">Texto enviado por el usuario.</param>
+        /// <param name="mode">Modo de operación (ej. QuickMode).</param>
+        /// <param name="underlyingMode">Nombre técnico del modelo de IA.</param>
+        /// <param name="history">Historial de mensajes para contexto del modelo.</param>
+        /// <param name="files">Archivos adjuntos para análisis multimodal.</param>
+        /// <param name="conversationId">ID de la conversación activa.</param>
+        /// <returns>Un flujo asíncrono (<see cref="IAsyncEnumerable{T}"/>) de fragmentos de respuesta.</returns>
+        /// <remarks>
+        /// Esta función utiliza Server-Sent Events (SSE) para procesar la respuesta palabra por palabra, mejorando la percepción de velocidad.
+        /// </remarks>
+        public async IAsyncEnumerable<StreamedBackendResponse> StreamMessageToBackendAsync(
+            string userToken, string userInput, string mode, string underlyingMode,
+            List<ChatMessage> history, List<AttachedFile> files, string conversationId)
+        {
             var requestData = new
             {
-                action = "send_message", // Le dice al backend qué operación se quiere realizar
+                action = "send_message",
                 user_input = userInput,
                 mode,
-                thread_id = threadId,
-                file_ids = fileIds
+                underlying_mode = underlyingMode,
+                history,
+                files = (files ?? []).Select(f => new { file_id = f.FileId, file_name = f.FileName }).ToList(),
+                conversation_id = conversationId,
             };
 
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            HttpRequestMessage request = CreateMessagePackRequest(userToken, requestData, _processMessageUrl);
+            HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            _ = response.EnsureSuccessStatusCode();
 
-            // 2. Crea la petición HTTP, añadiendo el token de seguridad en la cabecera.
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            HttpResponseMessage response;
-            try
+            await foreach (StreamedBackendResponse chunk in ReadStreamAsync(response))
             {
-                // 3. Envía la petición inicial.
-                // 'ResponseHeadersRead' es clave: nos permite empezar a procesar la respuesta
-                // tan pronto como lleguen las cabeceras, sin esperar a que se descargue todo el contenido.
-                response = await _httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
-
-                // Si la respuesta es un código de error (ej. 4xx, 5xx), lanza una excepción inmediatamente.
-                response.EnsureSuccessStatusCode();
-            }
-            catch (Exception ex)
-            {
-                // Si la conexión inicial falla, lo registra y lanza una excepción clara.
-                Log.Error(ex, "Fallo la conexión inicial del stream con el backend.");
-                throw new Exception($"Error del backend al iniciar el stream: {ex.Message}");
-            }
-
-            // 4. Delega la lectura del stream a un método auxiliar.
-            // Esto es necesario para cumplir con las reglas de C# que no permiten 'yield return'
-            // dentro de un bloque try-catch.
-            await foreach (var chunk in ReadStreamAsync(response))
-            {
-                // 5. Produce cada trozo (chunk) que devuelve el lector del stream.
-                // El 'yield return' es lo que convierte a este método en un generador asíncrono.
                 yield return chunk;
             }
         }
 
+        #endregion
+
+        #region IFileStorageService Implementation
+
         /// <summary>
-        /// Lee el stream de la respuesta HTTP, que consiste en una serie de objetos JSON.
-        /// 1. Parsea cada objeto JSON recibido.
-        /// 2. Identifica el 'type' del evento ('chunk', 'done', 'error').
-        /// 3. Cede el control con el objeto 'StreamedBackendResponse' apropiado.
-        /// 4. Cumple con la regla C# CS1626 al no usar 'yield return' dentro de un try-catch.
+        /// Orquesta el proceso de subida de archivos obteniendo una URL firmada y realizando un PUT directo a Google Cloud Storage.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="fileName">Nombre del archivo original.</param>
+        /// <param name="fileBytes">Contenido binario del archivo.</param>
+        /// <param name="mimeType">Tipo MIME para configuración de cabeceras en Storage.</param>
+        /// <param name="conversationId">ID de la conversación asociada.</param>
+        /// <returns>La URI interna de GCS (gs://...) que identifica el archivo.</returns>
+        /// <exception cref="InvalidOperationException">Lanzada si la respuesta del backend para la URL firmada es nula.</exception>
+        public async Task<string> UploadFileAsync(string userToken, string fileName, byte[] fileBytes, string mimeType, string conversationId)
+        {
+            var urlRequestData = new { file_name = fileName, content_type = mimeType };
+            HttpRequestMessage generateUrlRequest = CreateMessagePackRequest(userToken, urlRequestData, $"{_uploadFileUrl}/generate-upload-url");
+
+
+            HttpResponseMessage response = await _httpClient.SendAsync(generateUrlRequest);
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Error solicitando URL de subida: {error}");
+            }
+
+            string jsonResponse = await response.Content.ReadAsStringAsync();
+            UploadInfo uploadInfo = JsonSerializer.Deserialize<UploadInfo>(jsonResponse, _jsonOptions)
+
+                ?? throw new InvalidOperationException("No se pudo obtener la información de subida del servidor.");
+
+            using (ByteArrayContent content = new(fileBytes))
+            {
+                content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+                using HttpClient uploadClient = new() { Timeout = TimeSpan.FromMinutes(30) };
+                using HttpRequestMessage uploadRequest = new(HttpMethod.Put, uploadInfo.UploadUrl) { Content = content };
+
+                HttpResponseMessage uploadResponse = await uploadClient.SendAsync(uploadRequest);
+                if (!uploadResponse.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException("La carga binaria directa a la nube falló.");
+                }
+            }
+
+            return uploadInfo.GcsUri;
+        }
+
+        /// <summary>
+        /// Solicita al backend la eliminación de múltiples recursos de archivo en la nube.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="fileIds">Lista de URIs de GCS a eliminar.</param>
+        public async Task DeleteFilesAsync(string userToken, List<string> fileIds)
+        {
+            if (fileIds == null || fileIds.Count == 0) { return; }
+            var requestData = new { action = "delete_files", file_ids = fileIds };
+            await PostAsync(userToken, requestData, _processMessageUrl);
+        }
+
+        #endregion
+
+        #region IUserService Implementation
+
+        /// <summary>
+        /// Recupera el documento raíz del usuario, consolidando perfil, saldos y lista de hilos.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <returns>El documento <see cref="UserConversationsDocument"/> o null si hay errores.</returns>
+        public async Task<UserConversationsDocument?> GetUserDocumentAsync(string userToken)
+        {
+            var requestData = new { action = "get_user_document" };
+            return await PostAndDeserializeAsync<UserConversationsDocument>(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Obtiene todas las memorias (RAG) almacenadas por el usuario.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <returns>Lista de <see cref="Memory"/>.</returns>
+        public async Task<List<Memory>> GetMemoriesAsync(string userToken)
+        {
+            var requestData = new { action = "get_memories" };
+            return await PostAndDeserializeAsync<List<Memory>>(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Crea una nueva memoria persistente para el usuario.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="content">Contenido de la memoria.</param>
+        /// <returns>La instancia de <see cref="Memory"/> generada.</returns>
+        public async Task<Memory> AddMemoryAsync(string userToken, string content)
+        {
+            var requestData = new { action = "add_memory", content };
+            return await PostAndDeserializeAsync<Memory>(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Actualiza el contenido de una memoria existente.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="memoryId">ID de la memoria.</param>
+        /// <param name="content">Nuevo contenido.</param>
+        public async Task UpdateMemoryAsync(string userToken, string memoryId, string content)
+        {
+            var requestData = new { action = "update_memory", id = memoryId, content };
+            await PostAsync(userToken, requestData, _processMessageUrl);
+        }
+
+        /// <summary>
+        /// Elimina permanentemente una memoria del sistema.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="memoryId">ID de la memoria a borrar.</param>
+        public async Task DeleteMemoryAsync(string userToken, string memoryId)
+        {
+            var requestData = new { action = "delete_memory", id = memoryId };
+            await PostAsync(userToken, requestData, _processMessageUrl);
+        }
+
+        #endregion
+
+        #region IPaymentService Implementation
+
+        /// <summary>
+        /// Crea una sesión de pago en Stripe a través del microservicio de pagos.
+        /// </summary>
+        /// <param name="userToken">Token JWT de sesión.</param>
+        /// <param name="productId">ID del producto o plan.</param>
+        /// <param name="productType">Categoría (subscription/one_time).</param>
+        /// <returns>La URL de redirección a la pasarela de pago.</returns>
+        public async Task<string> CreateCheckoutSessionAsync(string userToken, string productId, string productType)
+        {
+            var requestData = new { product_id = productId, product_type = productType };
+            CheckoutSessionResponse response = await PostAndDeserializeAsync<CheckoutSessionResponse>(userToken, requestData, $"{_paymentServiceUrl}/create-checkout-session");
+            return response.CheckoutUrl;
+        }
+
+        #endregion
+
+        #region Private Helpers
+
+        /// <summary>
+        /// Crea una petición HTTP optimizada utilizando el formato binario MessagePack.
+        /// </summary>
+        /// <remarks>
+        /// MessagePack reduce significativamente el tamaño del payload comparado con JSON, 
+        /// lo cual es vital para el rendimiento en aplicaciones de escritorio que manejan grandes volúmenes de texto.
+        /// </remarks>
+        /// <param name="userToken">Token Bearer.</param>
+        /// <param name="data">Objeto a serializar.</param>
+        /// <param name="url">Endpoint destino.</param>
+        /// <returns>Un <see cref="HttpRequestMessage"/> listo para ser enviado.</returns>
+        private static HttpRequestMessage CreateMessagePackRequest(string userToken, object data, string url)
+        {
+            HttpRequestMessage message = new(HttpMethod.Post, url);
+            if (!string.IsNullOrEmpty(userToken))
+            {
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+            }
+
+            byte[] bytes = MessagePackSerializer.Serialize(data, s_msgPackOptions);
+            ByteArrayContent content = new(bytes);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/x-msgpack");
+            message.Content = content;
+            return message;
+        }
+
+        /// <summary>
+        /// Ejecuta una petición POST y valida el éxito de la operación.
+        /// </summary>
+        private async Task PostAsync(string userToken, object data, string url)
+        {
+            using HttpRequestMessage request = CreateMessagePackRequest(userToken, data, url);
+            using HttpResponseMessage response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = await response.Content.ReadAsStringAsync();
+                Log.Error("[Backend] Error {Code} en {Url}: {Error}", response.StatusCode, url, error);
+                throw new HttpRequestException(error);
+            }
+        }
+
+        /// <summary>
+        /// Ejecuta una petición POST y deserializa la respuesta binaria o JSON.
+        /// </summary>
+        /// <typeparam name="T">Tipo de destino de la deserialización.</typeparam>
+        /// <returns>El objeto deserializado de tipo <typeparamref name="T"/>.</returns>
+        private async Task<T> PostAndDeserializeAsync<T>(string userToken, object data, string url)
+        {
+            using HttpRequestMessage request = CreateMessagePackRequest(userToken, data, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-msgpack"));
+
+
+            using HttpResponseMessage response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException(error);
+            }
+
+            if (response.Content.Headers.ContentType?.MediaType == "application/x-msgpack")
+            {
+                using Stream stream = await response.Content.ReadAsStreamAsync();
+                return await MessagePackSerializer.DeserializeAsync<T>(stream, s_msgPackOptions);
+            }
+
+            using (Stream stream = await response.Content.ReadAsStreamAsync())
+            {
+                return await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions)
+
+                    ?? throw new InvalidOperationException("Respuesta vacía del servidor.");
+            }
+        }
+
+        /// <summary>
+        /// Lector de flujo para eventos SSE (Server-Sent Events).
         /// </summary>
         private async IAsyncEnumerable<StreamedBackendResponse> ReadStreamAsync(HttpResponseMessage response)
         {
-            using var stream = await response.Content.ReadAsStreamAsync();
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using Stream stream = await response.Content.ReadAsStreamAsync();
+            using StreamReader reader = new(stream, Encoding.UTF8);
 
-            string? line;
-            while ((line = await reader.ReadLineAsync()) != null)
+            while (!reader.EndOfStream)
             {
-                if (!line.StartsWith("data: "))
+                string? line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith(':')) { continue; }
+
+                if (line.StartsWith("data: ", StringComparison.Ordinal))
                 {
-                    continue;
-                }
+                    string jsonData = line[6..].Trim();
+                    if (string.IsNullOrEmpty(jsonData)) { continue; }
 
-                string jsonData = line.Substring(6);
-                StreamedBackendResponse? responseToSend = null;
+                    StreamedBackendResponse? chunk;
 
-                try
-                {
-                    // Usaa un bloque 'using' para asegurar que el JsonDocument se deseche correctamente.
-                    using JsonDocument doc = JsonDocument.Parse(jsonData);
-                    JsonElement root = doc.RootElement;
-
-                    string? eventType = root.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
-
-                    // Decidimos qué tipo de objeto crear basado en el 'type' del JSON.
-                    // PERO NO se usa 'yield return' aquí. Solo crea el objeto.
-                    switch (eventType)
+                    try
                     {
-                        case "chunk":
-                            responseToSend = new StreamedBackendResponse
-                            {
-                                TextChunk = root.TryGetProperty("content", out var contentProp) ? contentProp.GetString() : string.Empty
-                            };
-                            break;
-
-                        case "done":
-                            responseToSend = new StreamedBackendResponse
-                            {
-                                IsDone = true,
-                                ThreadId = root.TryGetProperty("thread_id", out var threadProp) ? threadProp.GetString() : null,
-                                VectorStoreId = root.TryGetProperty("vector_store_id", out var vsProp) ? vsProp.GetString() : null,
-                                ModelUsed = root.TryGetProperty("model_used", out var modelProp) ? modelProp.GetString() : "desconocido"
-                            };
-                            break;
-
-                        case "error":
-                            string errorMessage = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() ?? "Error desconocido" : "Error desconocido";
-                            Log.Error("Error recibido desde el stream del backend: {ErrorMessage}", errorMessage);
-                            // Para los errores, no envía nada más.
-                            yield break;
+                        chunk = JsonSerializer.Deserialize<StreamedBackendResponse>(jsonData, _jsonOptions);
                     }
-                }
-                catch (JsonException ex)
-                {
-                    Log.Error(ex, "Error al parsear el objeto JSON recibido del stream: {Json}", jsonData);
-                }
-                if (responseToSend != null)
-                {
-                    yield return responseToSend;
+                    catch (JsonException) { continue; }
 
-                    // Si el evento era 'done', termina el proceso.
-                    if (responseToSend.IsDone)
+                    if (chunk != null)
                     {
-                        yield break;
+                        yield return chunk;
                     }
                 }
             }
         }
 
-        // La firma del método incluye los fileIds para enviarlos al backend.
-        public async Task<BackendResponse> SendMessageToBackendAsync(string userToken, string userInput, string mode, string? threadId, List<string> fileIds)
-        {
-            // Crea un objeto anónimo con todos los datos que el backend necesita.
-            var requestData = new
-            {
-                user_input = userInput,
-                mode,
-                thread_id = threadId,
-                file_ids = fileIds
-            };
+        private sealed class ConversationsListResponse { [JsonPropertyName("Conversations")] public List<Conversation> Conversations { get; set; } = []; }
+        private sealed class MessagesListResponse { [JsonPropertyName("Messages")] public List<ChatMessage> Messages { get; set; } = []; }
+        private sealed class UploadInfo { [JsonPropertyName("upload_url")] public string UploadUrl { get; set; } = ""; [JsonPropertyName("gcs_uri")] public string GcsUri { get; set; } = ""; }
+        private sealed class CheckoutSessionResponse { [JsonPropertyName("checkout_url")] public string CheckoutUrl { get; set; } = ""; }
 
-            // Convierte el objeto a un string en formato JSON.
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            // Crea la petición HTTP, añadiendo el token de Google para la autenticación.
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            Log.Information("Enviando petición al backend: {Url}", ProcessMessageUrl);
-            var response = await _httpClient.SendAsync(requestMessage);
-
-            // Lee el contenido de la respuesta del servidor.
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            // Si el servidor devolvió un error (ej. 401 No Autorizado, 403 Límite Superado), lanza una excepción.
-            if (!response.IsSuccessStatusCode)
-            {
-                Log.Error("Error del backend ({StatusCode}): {Response}", response.StatusCode, responseContent);
-                // El mensaje de la excepción será el que se muestra al usuario en la notificación.
-                throw new Exception(responseContent);
-            }
-
-            Log.Information("Respuesta recibida del backend.");
-            // Usa el JsonSerializer para convertir el string JSON de la respuesta
-            // al objeto C# 'BackendResponse'.
-            // Si el JSON no coincide con la estructura de la clase, esto devolverá null.
-            var backendResponse = JsonSerializer.Deserialize<BackendResponse>(responseContent);
-
-            if (backendResponse == null)
-            {
-                // Esto pasaría si el backend cambia su formato de respuesta y la app no está actualizada.
-                throw new InvalidOperationException("No se pudo deserializar la respuesta del backend.");
-            }
-
-            // Devuelve el objeto completo con todos los datos.
-            return backendResponse;
-        }
-        public async Task<List<ChatMessage>> LoadMessagesAsync(string userToken, string threadId)
-        {
-            var requestData = new
-            {
-                action = "load_messages",
-                thread_id = threadId
-            };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            var response = await _httpClient.SendAsync(requestMessage);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"Error del backend al cargar mensajes: {responseContent}");
-            }
-
-            // Deserializa la respuesta que contiene la lista de mensajes.
-            var messagesResponse = JsonSerializer.Deserialize<MessagesListResponse>(responseContent);
-            return messagesResponse?.Messages ?? new List<ChatMessage>();
-        }
-
-        public async Task<string> UploadFileAsync(string userToken, string fileName, byte[] fileBytes, bool isImage)
-        {
-            // MultipartFormDataContent es la forma estándar de enviar archivos a través de HTTP.
-            using var multipartContent = new MultipartFormDataContent();
-
-            // Añade el archivo como un array de bytes.
-            multipartContent.Add(new ByteArrayContent(fileBytes), "file", fileName);
-            // Añade otros datos que el backend pueda necesitar.
-            multipartContent.Add(new StringContent(isImage.ToString()), "is_image");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, UploadFileUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = multipartContent;
-
-            Log.Information("Enviando archivo '{FileName}' al backend de subida.", fileName);
-            var response = await _httpClient.SendAsync(requestMessage);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                Log.Error("Error del backend de subida ({StatusCode}): {Response}", response.StatusCode, responseContent);
-                throw new Exception($"Error al subir archivo: {responseContent}");
-            }
-
-            // Supone que el backend devuelve un JSON con el ID del archivo.
-            var jsonDoc = JsonDocument.Parse(responseContent);
-            string fileId = jsonDoc.RootElement.GetProperty("file_id").GetString() ?? "";
-
-            return fileId;
-        }
-
-        public async Task DeleteConversationResourcesAsync(string userToken, string threadId, string? vectorStoreId)
-        {
-            // Este método envía la petición de borrado al backend.
-            var requestData = new
-            {
-                action = "delete_resources",
-                thread_id = threadId,
-                vector_store_id = vectorStoreId
-            };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            try
-            {
-                // No espera la respuesta para que la UI no se bloquee.
-                await _httpClient.SendAsync(requestMessage);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Falló la petición para eliminar recursos de OpenAI.");
-            }
-        }
-
-        public async Task<List<AttachedFile>> GetFileDetailsAsync(string userToken, List<string> fileIds)
-        {
-            // Este método pide al backend los detalles de los archivos.
-            var requestData = new
-            {
-                action = "get_file_details",
-                file_ids = fileIds
-            };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            var response = await _httpClient.SendAsync(requestMessage);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"Error del backend al obtener detalles de archivos: {responseContent}");
-            }
-
-            // Deserializa la respuesta que contiene la lista de archivos.
-            var filesResponse = JsonSerializer.Deserialize<FileDetailsListResponse>(responseContent);
-            return filesResponse?.Files ?? new List<AttachedFile>();
-        }
-
-        public async Task DeleteFilesAsync(string userToken, List<string> fileIds)
-        {
-            if (fileIds == null || !fileIds.Any()) return;
-
-            var requestData = new
-            {
-                action = "delete_files",
-                file_ids = fileIds
-            };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            try
-            {
-                // Envía la petición pero no espera la respuesta para no bloquear la UI.
-                _ = await _httpClient.SendAsync(requestMessage);
-                Log.Information("Solicitud de eliminación para {Count} archivo(s) temporales enviada al backend.", fileIds.Count);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Falló la petición para eliminar archivos temporales.");
-            }
-        }
-
-        public async Task RemoveFileFromVectorStoreAsync(string userToken, string vectorStoreId, string fileId)
-        {
-            var requestData = new
-            {
-                action = "remove_file_from_vs",
-                vector_store_id = vectorStoreId,
-                file_id = fileId
-            };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            try
-            {
-                var response = await _httpClient.SendAsync(requestMessage);
-                // Lanza una excepción si el backend devolvió un error (ej. 500)
-                response.EnsureSuccessStatusCode();
-                Log.Information("Solicitud para eliminar el archivo {FileId} del VS {VectorStoreId} completada.", fileId, vectorStoreId);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Falló la petición para eliminar el archivo adjunto {FileId}.", fileId);
-                // Propaga la excepción para que el ViewModel pueda manejarla.
-                throw new Exception("No se pudo eliminar el archivo adjunto del servidor.");
-            }
-        }
-
-        public async Task<UserConversationsDocument?> GetUserDocumentAsync(string userToken)
-        {
-            // Este método pide al backend el documento completo del usuario.
-            var requestData = new { action = "get_user_document" };
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            var response = await _httpClient.SendAsync(requestMessage);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"Error del backend al obtener el documento del usuario: {responseContent}");
-            }
-
-            return JsonSerializer.Deserialize<UserConversationsDocument>(responseContent);
-        }
-
-        /// <summary>
-        /// Envía una conversación al backend para ser guardada en la base de datos.
-        /// </summary>
-        public async Task SaveConversationAsync(string userToken, Conversation conversation)
-        {
-            // Prepara los datos para enviar. La acción y el objeto de la conversación.
-            var requestData = new
-            {
-                action = "save_conversation",
-                conversation = conversation
-            };
-
-            // Serializa los datos a JSON.
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            // Crea y envía la petición autenticada.
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            try
-            {
-                var response = await _httpClient.SendAsync(requestMessage);
-                // Lanza una excepción si el backend devolvió un error (ej. 500).
-                response.EnsureSuccessStatusCode();
-                Log.Information("Conversación {ThreadId} guardada exitosamente a través del backend.", conversation.ThreadId);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Falló la petición para guardar la conversación.");
-                // Propaga la excepción para que el ViewModel pueda notificar al usuario.
-                throw new Exception("No se pudo guardar la conversación en el servidor.");
-            }
-        }
-        
-        /// <summary>
-        /// Envía una solicitud al backend para eliminar una conversación.
-        /// </summary>
-        public async Task DeleteConversationAsync(string userToken, string threadId)
-        {
-            var requestData = new
-            {
-                action = "delete_conversation",
-                thread_id = threadId
-            };
-            
-            var json = JsonSerializer.Serialize(requestData);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, ProcessMessageUrl);
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
-            requestMessage.Content = content;
-
-            try
-            {
-                var response = await _httpClient.SendAsync(requestMessage);
-                response.EnsureSuccessStatusCode();
-                Log.Information("Solicitud para eliminar la conversación {ThreadId} enviada al backend.", threadId);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Falló la petición para eliminar la conversación {ThreadId}.", threadId);
-                throw new Exception("No se pudo eliminar la conversación en el servidor.");
-            }
-        }
-    }
-    
-    public class MessagesListResponse
-    {
-        [JsonPropertyName("messages")]
-        public List<ChatMessage> Messages { get; set; } = new();
-    }
-    
-    /// <summary>
-    /// Representa la estructura de la respuesta JSON para la petición de detalles de archivos.
-    /// Permite una deserialización segura y de tipo fuerte.
-    /// </summary>
-    public class FileDetailsListResponse
-    {
-        [JsonPropertyName("files")]
-        public List<AttachedFile> Files { get; set; } = new();
+        #endregion
     }
 }

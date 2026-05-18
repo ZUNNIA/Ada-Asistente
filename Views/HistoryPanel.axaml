@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:vm="using:AsistenteVirtual.ViewModels"
+            xmlns:svg="using:Avalonia.Svg.Skia"
+            xmlns:i="using:Avalonia.Xaml.Interactivity"
+            xmlns:ia="using:Avalonia.Xaml.Interactions.Core"
+            mc:Ignorable="d" d:DesignWidth="250" d:DesignHeight="450"
+            x:Class="AsistenteVirtual.Views.HistoryPanel"
+            x:DataType="vm:MainViewModel">
+
+    <Border Name="HistoryPanelBorder" 
+            Width="230" 
+            HorizontalAlignment="Left"
+            Background="#051923" 
+            BorderBrush="{StaticResource BorderBrush}" 
+            BorderThickness="1" 
+            CornerRadius="15"
+            Padding="5" 
+            Margin="10,10,0,10" 
+            ZIndex="10">
+        <Grid RowDefinitions="Auto, *, Auto">
+            <!-- Botón de nueva conversación -->
+            <StackPanel Grid.Row="0" Margin="0">
+                <Button Classes="sidePanelButton" Command="{Binding NewConversationCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource Nav_NewChat}" VerticalAlignment="Center"/>
+                        <Image Width="28" Height="28">
+                            <Image.Source>
+                                <svg:SvgImage Source="avares://Ada/Resources/Icons/chat_new.svg" Css="* { fill: #8da9b6; }"/>
+                            </Image.Source>
+                        </Image>
+                    </StackPanel>
+                </Button>
+                <Label Grid.Row="1" Classes="panelTitle" Content="{DynamicResource Panel_History_Title}" HorizontalAlignment="Center" Margin="0"/>
+            </StackPanel>
+            
+            <ListBox Name="HistoryListBox" Grid.Row="1" ItemsSource="{Binding ConversationHistory}"
+                    SelectedItem="{Binding SelectedConversation, Mode=TwoWay}"
+                    Background="Transparent" BorderThickness="0" Margin="5,0"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:ConversationHistoryViewModel">
+                        <Border Classes="historyItem" Background="Transparent" Padding="8,10">
+                            <Grid ColumnDefinitions="*,Auto,Auto" Background="Transparent">
+                                <!-- Muestra el título de la conversación -->
+                                <TextBlock Grid.Column="0"
+                                        Text="{Binding Title}" 
+                                        VerticalAlignment="Center" 
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{StaticResource TextPrimaryBrush}" 
+                                        FontSize="14"
+                                        IsVisible="{Binding IsDisplayingTitle}"/>
+
+                                <!-- Muestra un TextBox para editar el título cuando IsEditingTitle es true -->        
+                                <TextBox Name="TitleEditor" 
+                                        Grid.Column="0" 
+                                        Grid.ColumnSpan="3"
+                                        Text="{Binding Title, Mode=TwoWay}" 
+                                        Watermark="Escribe un título..."
+                                        IsVisible="{Binding IsEditingTitle}"
+                                        FontSize="14"
+                                        Foreground="{StaticResource TextPrimaryBrush}" 
+                                        CaretBrush="{StaticResource TextPrimaryBrush}"
+                                        VerticalContentAlignment="Center"
+                                        HorizontalContentAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0"
+                                        AttachedToVisualTree="TitleEditorAttachedToVisualTree"
+                                        KeyDown="TitleEditorKeyDown">
+                                    <TextBox.KeyBindings>
+                                        <KeyBinding Gesture="Enter" Command="{Binding ProcessTitleEditCommand}" />
+                                    </TextBox.KeyBindings>
+                                </TextBox>
+                                
+                                <!-- Botones para renombrar y eliminar la conversación -->
+                                <Button Classes="imageButton historyActionButton" Grid.Column="1" Margin="5,0,0,0" Command="{Binding RenameCommand}" IsVisible="{Binding IsDisplayingTitle}">
+                                    <Image>
+                                        <Image.Source>
+                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/edit.svg" Css="* { fill: #8da9b6; }"/>
+                                        </Image.Source>
+                                    </Image>
+                                </Button>
+                                <Button Classes="imageButton historyActionButton" Grid.Column="2" Margin="5,0,0,0" Command="{Binding DeleteCommand}" IsVisible="{Binding IsDisplayingTitle}">
+                                    <Image>
+                                        <Image.Source>
+                                            <svg:SvgImage Source="avares://Ada/Resources/Icons/delete.svg" Css="* { fill: #8da9b6; }"/>
+                                        </Image.Source>
+                                    </Image>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            
+            <!-- Foto y nombre del usuario -->
+            <Button Grid.Row="2" Classes="sidePanelButton" Margin="0"
+                    Command="{Binding ToggleSettingsFlyoutCommand}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Ellipse Width="32" Height="32" Fill="{Binding UserProfileBrush}" />
+                    <TextBlock Text="{Binding UserDisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

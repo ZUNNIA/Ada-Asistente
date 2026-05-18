@@ -1,0 +1,229 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:vm="using:AsistenteVirtual.ViewModels"
+            xmlns:const="using:AsistenteVirtual.Constants"
+            mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+            x:Class="AsistenteVirtual.Views.StoreView"
+            x:DataType="vm:MainViewModel">
+
+    <!-- Tienda de créditos y suscripciones -->
+    <Grid Background="rgba(0, 0, 0, 0.76)"
+        IsVisible="{Binding UI.IsSubscriptionsWindowOpen}">
+        <Border Classes="overlayBorder" Width="1000" MinHeight="700" PointerPressed="Content_PointerPressed">
+            <Grid RowDefinitions="Auto, *">
+                
+                <!-- Encabezado y Navegación de Pestañas -->
+                <StackPanel Grid.Row="0" Margin="20" HorizontalAlignment="Center" Spacing="15">
+                    <TextBlock Text="{DynamicResource Store_Title}"
+                                FontSize="24"
+                                FontWeight="Bold"
+                                HorizontalAlignment="Center"/>
+
+                    <!-- Interruptor Deslizante -->
+                    <Border Classes="toggleSwitchContainer" HorizontalAlignment="Center">
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                            <Border Grid.Column="{Binding StoreVM.SelectedStoreTab, Converter={StaticResource StoreTabToIndexConverter}}" Classes="toggleSwitchSlider"/>
+                            <!-- Botón Pestaña 0 -->
+                            <Button Grid.Column="0" 
+                                    Content="{DynamicResource Store_Tab_Subs}" 
+                                    Classes="toggleSwitchButton" 
+                                    Command="{Binding StoreVM.SelectStoreTabCommand}"
+                                    CommandParameter="{x:Static const:TabNames.StoreSubscriptions}"/>
+                            <!-- Botón Pestaña 1 -->
+                            <Button Grid.Column="1" 
+                                    Content="{DynamicResource Store_Tab_Credits}" 
+                                    Classes="toggleSwitchButton" 
+                                    Command="{Binding StoreVM.SelectStoreTabCommand}"
+                                    CommandParameter="{x:Static const:TabNames.StorePackages}"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Contenido de las Pestañas -->
+                <Grid Grid.Row="1" Margin="20">
+                    
+                    <!-- Pestaña suscripciones -->
+                    <ScrollViewer IsVisible="{Binding StoreVM.IsSubscriptionsTabActive}">
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="{DynamicResource Store_Sub_Disclaimer}"
+                                        Foreground="Gray"
+                                        HorizontalAlignment="Center"/>
+                            <Grid ColumnDefinitions="*,*,*" ShowGridLines="False">
+                                <Grid.Styles>
+                                    <Style Selector="Border.subscriptionPlanBorder">
+                                        <Setter Property="Margin" Value="5"/>
+                                    </Style>
+                                </Grid.Styles>
+                                
+                                <!-- Plan Escencial -->
+                                <Border Grid.Column="0" Classes="subscriptionPlanBorder">
+                                    <StackPanel Spacing="15">
+                                        <StackPanel Spacing="5" HorizontalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Plan_Name_Ess}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Price_Ess}" FontSize="22" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Creds_Ess}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Content="{DynamicResource Store_Btn_Subscribe}" 
+                                                HorizontalAlignment="Center" 
+                                                Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}"
+                                                CommandParameter="Escencial"/>
+                                        <ItemsControl ItemsSource="{Binding StoreVM.EscencialPlanFeatures}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="✓" Foreground="LightGreen" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                                
+                                <!-- Plan Plus -->
+                                <Border Grid.Column="1" Classes="subscriptionPlanBorder">
+                                    <StackPanel Spacing="15">
+                                        <StackPanel Spacing="5" HorizontalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Plan_Name_Plus}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Price_Plus}" FontSize="22" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Creds_Plus}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Content="{DynamicResource Store_Btn_Subscribe}" 
+                                                HorizontalAlignment="Center" 
+                                                Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}"
+                                                CommandParameter="Plus"/>
+                                        <ItemsControl ItemsSource="{Binding StoreVM.PlusPlanFeatures}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="✓" Foreground="LightGreen" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                                
+                                <!-- Plan Pro -->
+                                <Border Grid.Column="2" Classes="subscriptionPlanBorder">
+                                    <StackPanel Spacing="15">
+                                        <StackPanel Spacing="5" HorizontalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource Plan_Name_Pro}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Price_Pro}" FontSize="22" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{DynamicResource Plan_Creds_Pro}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Content="Suscribirse" 
+                                                HorizontalAlignment="Center" 
+                                                Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}"
+                                                CommandParameter="Pro"/>
+                                        <ItemsControl ItemsSource="{Binding StoreVM.ProPlanFeatures}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="✓" Foreground="LightGreen" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                                
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                    
+                    <!-- Pestaña créditos -->
+                    <ScrollViewer IsVisible="{Binding StoreVM.IsPackagesTabActive}">
+                        <StackPanel Spacing="15">
+                            
+                            <!-- Paquetes de Generación -->
+                            <TextBlock Text="{DynamicResource Store_Section_Gen}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{DynamicResource Store_Desc_Gen}" Foreground="Gray" HorizontalAlignment="Left" Margin="0,-10,0,0"/>
+                            
+                            <Grid ColumnDefinitions="*,*,*,*" ShowGridLines="False">
+                                <Grid.Styles>
+                                    <Style Selector="Border.subscriptionPlanBorder">
+                                        <Setter Property="Margin" Value="5"/>
+                                    </Style>
+                                </Grid.Styles>
+                                <Border Grid.Column="0" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource Pack_Name_Basic}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Price_Basic}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Creds_Basic}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_Buy}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Básico"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource Pack_Name_Pop}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Price_Pop}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Creds_Pop}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_Buy}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Popular"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource Pack_Name_Cre}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Price_Cre}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Creds_Cre}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_Buy}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Creador"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="3" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource Pack_Name_Stu}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Price_Stu}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Pack_Creds_Stu}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_Buy}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Estudio"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            
+                            <!-- Recargas de Chat -->
+                            <TextBlock Text="{DynamicResource Store_Section_Chat}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,20,0,0"/>
+                            <TextBlock Text="{DynamicResource Store_Desc_Chat}" Foreground="Gray" HorizontalAlignment="Left" Margin="0,-10,0,0"/>
+                            
+                            <Grid ColumnDefinitions="*,*,*,*" ShowGridLines="False">
+                                <Grid.Styles>
+                                    <Style Selector="Border.subscriptionPlanBorder">
+                                        <Setter Property="Margin" Value="5"/>
+                                    </Style>
+                                </Grid.Styles>
+                                <Border Grid.Column="0" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource TopUp_Name_Imp}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource TopUp_Price_Imp}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource TopUp_Creds_Imp}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_TopUp}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Impulso"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Classes="subscriptionPlanBorder" Padding="15">
+                                    <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                        <TextBlock Text="{DynamicResource TopUp_Name_Sup}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource TopUp_Price_Sup}" FontSize="20" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource TopUp_Creds_Sup}" FontWeight="Bold" Foreground="{StaticResource TextDimBrush}" HorizontalAlignment="Center"/>
+                                        <Button Content="{DynamicResource Store_Btn_TopUp}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Classes="accentButton"
+                                                Command="{Binding StoreVM.PurchaseProductCommand}" CommandParameter="Supercarga"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -6,24 +6,24 @@ namespace AsistenteVirtual.Models
     public enum SubscriptionTier
     {
         /// <summary>
-        /// Nivel de acceso básico y gratuito.
+        /// Nivel de acceso básico para usuarios sin suscripción activa.
         /// </summary>
         Free,
 
         /// <summary>
-        /// Nivel de suscripción de pago inicial.
+        /// Nivel de suscripción de pago "Escencial".
         /// </summary>
-        Esencial,
+        Escencial,
 
         /// <summary>
-        /// Nivel de suscripción intermedio.
+        /// Nivel de suscripción de pago "Plus".
         /// </summary>
         Plus,
 
         /// <summary>
-        /// Nivel de suscripción más alto con los mejores límites.
+        /// Nivel de suscripción de pago "Pro".
         /// </summary>
-        Premium,
+        Pro,
 
         /// <summary>
         /// Un estado especial para usuarios a los que se les ha denegado el acceso.

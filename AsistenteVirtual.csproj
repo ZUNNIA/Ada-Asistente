@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- Configuración del Proyecto -->
     <OutputType>WinExe</OutputType>
@@ -7,61 +7,81 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
 
     <!-- Metadatos de la Aplicación -->
     <AssemblyName>Ada</AssemblyName>
-    <Version>0.4.0</Version>
-    <AssemblyVersion>0.4.0</AssemblyVersion>
-    <FileVersion>0.4.0</FileVersion>
-    <Authors>Daneko</Authors>
+    <Version>0.6.0</Version>
+    <AssemblyVersion>0.6.0</AssemblyVersion>
+    <FileVersion>0.6.0</FileVersion>
+    <Authors>ZUNNIA</Authors>
     <Product>Ada</Product>
     <ApplicationIcon>Resources/Icons/ada.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Rutas de recursos -->
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Resources\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="changelog_app.md" />
-    <None Remove="changelog_server.md" />
-  </ItemGroup>
+    <Content Include="Resources\VoskModel\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
 
-  <ItemGroup>
+    <!-- Parches, términos y privacidad -->
     <EmbeddedResource Include="changelog_app.md" />
     <EmbeddedResource Include="changelog_server.md" />
-  </ItemGroup>
+    <EmbeddedResource Include="privacy_policy.md" />
+    <EmbeddedResource Include="terms_of_service.md" />
 
-  <ItemGroup>
-    <!-- Paquetes de Avalonia en la versión estable y probada 11.0.10 -->
-    <PackageReference Include="Avalonia" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Skia" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Svg.Skia" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Xaml.Behaviors" Version="11.1.0" />
-    <PackageReference Include="Devlooped.CredentialManager" Version="2.6.1" />
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="9.0.7" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-    <PackageReference Include="Serilog" Version="4.3.0" />
-    <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-
-    <!-- SkiaSharp y HarfBuzz para Linux, versiones EXACTAS para Avalonia 11.0.10 -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.2" />
+    <!-- Avalonia -->
+    <PackageReference Include="Avalonia" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Skia" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.0" />
+    <PackageReference Include="Avalonia.X11" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Xaml.Behaviors" Version="11.2.0" />
     
-    <!-- El resto de las dependencias -->
+    <!-- Gráficos nativos -->
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.2" />
+    <PackageReference Include="Markdig" Version="0.44.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+
+    <!-- Google Cloud Platform -->
     <PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
     <PackageReference Include="Google.Cloud.Firestore" Version="3.6.0" />
     <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.6.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
+    <!-- Autenticación y Seguridad -->
+    <PackageReference Include="Devlooped.CredentialManager" Version="2.6.1" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="9.0.7" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.14.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+
+    <!-- Audio y Reconocimiento de Voz -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="PortAudioSharp2" Version="1.0.4" />
+    <PackageReference Include="Vosk" Version="0.3.38" />
+
+    <!-- Logging -->
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+
+    <!-- Utilidades, Serialización y Servicios Generales -->
+    <PackageReference Include="MessagePack" Version="3.1.4" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+
   </ItemGroup>
 </Project>
 
 <!--  Exportación para diferentes plataformas
-dotnet publish -c Release -r (win, linux, osx)-x64 (doble guíon)self-contained true -p:PublishSingleFile=true -->
+dotnet publish -c Release -r (win, linux, osx)-x64 -juntarGuiones-self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true
+-->
