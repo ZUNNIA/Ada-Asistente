@@ -31,20 +31,43 @@ namespace AsistenteVirtual.Views
             userInputEditor?.AddHandler(KeyDownEvent, UserInputEditor_PreviewKeyDown, RoutingStrategies.Tunnel);
 
             // Configuración de scroll por arrastre con botón central.
-            ScrollViewer? scrollViewer = this.FindControl<ScrollViewer>("ChatScrollViewer");
-            if (scrollViewer != null)
+            this.AttachedToVisualTree += (s, e) =>
             {
-                scrollViewer.PointerPressed += ScrollViewer_PointerPressed;
-                scrollViewer.PointerMoved += ScrollViewer_PointerMoved;
-                scrollViewer.PointerReleased += ScrollViewer_PointerReleased;
-                DataContextChanged += (s, e) =>
+                ListBox? listBox = this.FindControl<ListBox>("ChatListBox");
+                if (listBox != null)
                 {
-                    if (DataContext is MainViewModel vm)
+                    // Esperar a que el template se aplique para encontrar el ScrollViewer
+                    Dispatcher.UIThread.Post(() =>
                     {
-                        vm.ChatVM.Messages.CollectionChanged += (sender, args) => ScrollToBottom();
-                    }
-                };
+                        ScrollViewer? scrollViewer = listBox.FindControl<ScrollViewer>("PART_ScrollViewer");
+                        if (scrollViewer != null)
+                        {
+                            SetupScrollViewer(scrollViewer);
+                        }
+                    }, DispatcherPriority.Loaded);
+                }
+            };
+        }
+
+        private void SetupScrollViewer(ScrollViewer scrollViewer)
+        {
+            scrollViewer.PointerPressed += ScrollViewer_PointerPressed;
+            scrollViewer.PointerMoved += ScrollViewer_PointerMoved;
+            scrollViewer.PointerReleased += ScrollViewer_PointerReleased;
+            
+            if (DataContext is MainViewModel vm)
+            {
+                vm.ChatVM.Messages.CollectionChanged += (sender, args) => ScrollToBottom();
             }
+            
+            // También escuchar cambios de DataContext
+            DataContextChanged += (s, e) =>
+            {
+                if (DataContext is MainViewModel vm2)
+                {
+                    vm2.ChatVM.Messages.CollectionChanged += (sender, args) => ScrollToBottom();
+                }
+            };
         }
 
         /// <summary>
@@ -93,7 +116,8 @@ namespace AsistenteVirtual.Views
         {
             Dispatcher.UIThread.Post(() =>
             {
-                ScrollViewer? scrollViewer = this.FindControl<ScrollViewer>("ChatScrollViewer");
+                ListBox? listBox = this.FindControl<ListBox>("ChatListBox");
+                ScrollViewer? scrollViewer = listBox?.FindControl<ScrollViewer>("PART_ScrollViewer");
                 scrollViewer?.ScrollToEnd();
             }, DispatcherPriority.Background);
         }

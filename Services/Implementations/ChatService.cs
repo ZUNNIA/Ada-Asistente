@@ -64,7 +64,7 @@ namespace AsistenteVirtual.Services.Implementations
             // Validación rápida antes de saltar a hilos secundarios
             if (string.IsNullOrWhiteSpace(userTextToSend) && context.TemporaryFiles.Count == 0) { return; }
 
-            // 1. Desplazamos toda la ejecución a un hilo del ThreadPool para liberar la UI inmediatamente
+            // Desplazamos toda la ejecución a un hilo del ThreadPool para liberar la UI inmediatamente
             await Task.Run(async () =>
             {
                 _responseCts = new CancellationTokenSource();
@@ -75,7 +75,7 @@ namespace AsistenteVirtual.Services.Implementations
                     string? userToken = await _authService.GetCurrentUserTokenAsync();
                     List<AttachedFileViewModel> filesToProcess = [.. context.TemporaryFiles];
 
-                    // 2. Actualización visual inicial (UI Thread)
+                    // Actualización visual inicial (UI Thread)
                     await _dispatcher.InvokeAsync(() =>
                     {
                         IsAssistantResponding = true;
@@ -86,7 +86,7 @@ namespace AsistenteVirtual.Services.Implementations
                         }
                     });
 
-                    // 3. Gestión de la conversación
+                    // Gestión de la conversación
                     Conversation? conversationModel = context.CurrentConversation?.GetModel();
                     conversationModel ??= await context.EnsureActiveConversationAsync.Invoke(userTextToSend, filesToProcess);
 
@@ -101,7 +101,7 @@ namespace AsistenteVirtual.Services.Implementations
                         await _conversationService.SaveMessageAsync(userToken!, conversationModel.ConversationId, userMsgVm.GetModel());
                     }
 
-                    // 4. Preparación del asistente
+                    // Preparación del asistente
                     ChatMessageViewModel? assistantMsgVm = null;
                     await _dispatcher.InvokeAsync(() =>
                     {
@@ -118,7 +118,7 @@ namespace AsistenteVirtual.Services.Implementations
                         .Select(m => m.GetModel())
                         .Where(m => !string.IsNullOrEmpty(m.Content))];
 
-                    // 5. Consumo del Stream de IA (Background)
+                    // Consumo del Stream de IA (Background)
                     IAsyncEnumerable<StreamedBackendResponse> stream = _conversationService.StreamMessageToBackendAsync(
                         userToken!, userTextToSend, context.FeatureName, context.UnderlyingMode, history,
                         conversationModel!.AssociatedFiles, conversationModel.ConversationId);
@@ -140,7 +140,7 @@ namespace AsistenteVirtual.Services.Implementations
                         }, DispatcherPriority.Background);
                     }
 
-                    // 6. Persistencia final (Background)
+                    // Persistencia final (Background)
                     await _conversationService.SaveMessageAsync(userToken!, conversationModel.ConversationId, assistantMsgVm!.GetModel());
                 }
                 catch (Exception ex)

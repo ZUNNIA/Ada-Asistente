@@ -29,7 +29,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- ================================================================== -->
-        <!-- REGIÓN: NOTIFICACIONES (CAPA SUPERIOR Z-INDEX 1100)                -->
+        <!-- NOTIFICACIONES (CAPA SUPERIOR Z-INDEX 1100)                        -->
         <!-- ================================================================== -->
         <ItemsControl Grid.Column="0" 
                     ItemsSource="{Binding ErrorNotifications}"
@@ -101,7 +101,7 @@
         </ItemsControl>
 
         <!-- ================================================================== -->
-        <!-- REGIÓN: PANELES LATERALES Y ÁREAS DE ACTIVACIÓN                    -->
+        <!-- PANELES LATERALES Y ÁREAS DE ACTIVACIÓN                            -->
         <!-- ================================================================== -->
 
         <!-- Panel Izquierdo: Historial -->
@@ -145,7 +145,7 @@
                 PointerExited="FilesTriggerArea_PointerExited" />
 
         <!-- ================================================================== -->
-        <!-- REGIÓN: MODALES Y OVERLAYS (Z-INDEX 100+)                          -->
+        <!-- MODALES Y OVERLAYS (Z-INDEX 100+)                                  -->
         <!-- ================================================================== -->
 
         <!-- Menú Flotante de Usuario (Flyout) -->
@@ -305,7 +305,7 @@
         </Grid>
 
         <!-- ================================================================== -->
-        <!-- REGIÓN: ÁREA CENTRAL DE CHAT                                       -->
+        <!-- ÁREA CENTRAL DE CHAT                                               -->
         <!-- ================================================================== -->
         <views:ChatArea Name="ChatAreaControl" Grid.Column="1"/>
 

@@ -4,7 +4,7 @@
         xmlns:vm="using:AsistenteVirtual.ViewModels">
 
     <!-- ====================================================================== -->
-    <!-- 1. ESTILOS BASE (TIPOGRAFÍA Y COLORES POR DEFECTO)                     -->
+    <!-- ESTILOS BASE (TIPOGRAFÍA Y COLORES POR DEFECTO)                        -->
     <!-- ====================================================================== -->
     
     <Style Selector="TextBlock">
@@ -41,7 +41,7 @@
     </Style>
 
     <!-- ====================================================================== -->
-    <!-- 2. LAYOUT Y TEXTOS DE ESTRUCTURA                                       -->
+    <!-- LAYOUT Y TEXTOS DE ESTRUCTURA                                          -->
     <!-- ====================================================================== -->
 
     <Style Selector="Label.panelTitle">
@@ -71,7 +71,7 @@
     </Style>
 
     <!-- ====================================================================== -->
-    <!-- 3. SISTEMA DE BOTONES                                                  -->
+    <!-- SISTEMA DE BOTONES                                                     -->
     <!-- ====================================================================== -->
 
     <!-- Botón de Imagen (Iconos sin fondo) -->
@@ -148,7 +148,7 @@
     </Style>
 
     <!-- ====================================================================== -->
-    <!-- 4. COMPONENTES DE INTERFAZ (BORDES Y CONTENEDORES)                     -->
+    <!-- COMPONENTES DE INTERFAZ (BORDES Y CONTENEDORES)                        -->
     <!-- ====================================================================== -->
 
     <!-- Borde de Entrada de Texto -->
@@ -266,7 +266,7 @@
     </Style>
 
     <!-- ====================================================================== -->
-    <!-- 5. SISTEMA DE PESTAÑAS                                                 -->
+    <!-- SISTEMA DE PESTAÑAS                                                    -->
     <!-- ====================================================================== -->
 
     <Style Selector="Border.toggleSwitchContainer">
@@ -296,7 +296,7 @@
     </Style>
 
     <!-- ====================================================================== -->
-    <!-- 6. ESTILOS ESPECÍFICOS PARA MARKDOWNVIEW                               -->
+    <!-- ESTILOS ESPECÍFICOS PARA MARKDOWNVIEW                                  -->
     <!-- ====================================================================== -->
 
     <!-- Párrafos -->
