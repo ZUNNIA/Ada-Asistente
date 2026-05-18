@@ -6,28 +6,36 @@ using Avalonia.Layout;
 namespace AsistenteVirtual.Converters
 {
     /// <summary>
-    /// Convierte el rol de un mensaje (ej. "Usuario", "Asistente") a un valor de HorizontalAlignment.
-    /// Se utiliza para alinear los mensajes del usuario a la derecha y los del asistente a la izquierda.
+    /// Determina la alineación horizontal de una burbuja de chat basándose en el rol del remitente.
     /// </summary>
     public class RoleToAlignmentConverter : IValueConverter
     {
+        /// <summary>
+        /// Convierte el rol del mensaje en un valor de alineación de Avalonia.
+        /// </summary>
+        /// <param name="value">El rol del mensaje (string).</param>
+        /// <param name="targetType">El tipo de destino esperado.</param>
+        /// <param name="parameter">Parámetro opcional.</param>
+        /// <param name="culture">Cultura actual.</param>
+        /// <returns>
+        /// <see cref="HorizontalAlignment.Right"/> si el rol es "Usuario"; 
+        /// de lo contrario, <see cref="HorizontalAlignment.Left"/>.
+        /// </returns>
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value is string role)
-            {
-                // Si el rol es "Usuario", alinea el mensaje al final (derecha). Para cualquier otro rol, al inicio (izquierda).
-                return string.Equals(role, "Usuario", StringComparison.OrdinalIgnoreCase)
+            return value is string role
+                ? role.Equals("Usuario", StringComparison.OrdinalIgnoreCase)
                     ? HorizontalAlignment.Right
-                    : HorizontalAlignment.Left;
-            }
-            // Valor por defecto si el binding falla o el valor no es un string.
-            return HorizontalAlignment.Left;
+                    : HorizontalAlignment.Left
+                : HorizontalAlignment.Left;
         }
 
+        /// <summary>
+        /// La conversión inversa no está implementada.
+        /// </summary>
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            // La conversión inversa no es necesaria para este caso de uso.
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 }

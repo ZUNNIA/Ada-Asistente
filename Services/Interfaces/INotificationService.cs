@@ -1,22 +1,34 @@
-﻿using System;
+﻿using AsistenteVirtual.ViewModels;
+using System;
 
-namespace AsistenteVirtual.Services
+namespace AsistenteVirtual.Services.Interfaces
 {
     /// <summary>
-    /// Define el contrato para un servicio que gestiona notificaciones en la UI.
+    /// Define el contrato para el sistema de notificaciones visuales de la aplicación.
     /// </summary>
+    /// <remarks>
+    /// Implementa un patrón de mensajería desacoplado para disparar alertas desde 
+    /// cualquier capa sin depender de controles de UI específicos.
+    /// </remarks>
     public interface INotificationService
     {
-        /// <summary>
-        /// Evento que se dispara cuando se debe mostrar una notificación.
-        /// </summary>
+        /// Evento disparado para mostrar notificaciones simples de corta duración.
         event Action<string, bool> OnShowTemporaryNotification;
 
+        /// Evento disparado para desplegar diálogos de error complejos con acciones extendidas.
+        event Action<ErrorNotificationViewModel> OnShowComplexNotification;
+
         /// <summary>
-        /// Solicita mostrar una notificación temporal.
+        /// Solicita la visualización de una notificación informativa o de error efímera.
         /// </summary>
-        /// <param name="message">El mensaje a mostrar.</param>
-        /// <param name="isError">Indica si es un error (true) o una advertencia/información (false).</param>
+        /// <param name="message">Cuerpo del mensaje a mostrar.</param>
+        /// <param name="isError">Define si la notificación debe usar el esquema visual de error crítico.</param>
         void ShowTemporaryNotification(string message, bool isError);
+
+        /// <summary>
+        /// Solicita el despliegue de un overlay de error persistente que requiere interacción.
+        /// </summary>
+        /// <param name="notification">Instancia del ViewModel configurado con los datos del error.</param>
+        void ShowComplexNotification(ErrorNotificationViewModel notification);
     }
 }

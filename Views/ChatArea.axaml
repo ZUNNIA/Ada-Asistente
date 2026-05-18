@@ -1,0 +1,294 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:vm="using:AsistenteVirtual.ViewModels"
+            xmlns:svg="using:Avalonia.Svg.Skia"
+            xmlns:views="using:AsistenteVirtual.Views"
+            mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
+            x:Class="AsistenteVirtual.Views.ChatArea"
+            x:DataType="vm:MainViewModel">
+
+    <!-- 
+        Estructura Principal del Chat 
+        Organizada en dos filas: historial de mensajes (expandible) y área de entrada (fija).
+    -->
+    <Grid ZIndex="1" RowDefinitions="*, Auto" Margin="10,0" DragDrop.AllowDrop="True">
+        
+        <!-- Mensaje de bienvenida: Visible solo cuando no hay historial -->
+        <Label Classes="welcomeText" 
+                Content="{DynamicResource Chat_Welcome}" 
+                IsVisible="{Binding ChatVM.IsChatEmpty}"/>
+
+        <!-- 
+            HISTORIAL DE MENSAJES 
+            Utiliza un ScrollViewer con un ItemsControl para renderizar las burbujas de chat.
+        -->
+        <ListBox Name="ChatListBox" 
+                 Grid.Row="0" 
+                 Margin="0,10,0,0"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Padding="0"
+                 ItemsSource="{Binding ChatVM.Messages}"
+                 SelectionMode="Single">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="Template">
+                        <ControlTemplate>
+                            <ContentPresenter Name="PART_ContentPresenter"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                                            Content="{TemplateBinding Content}"
+                                            Padding="{TemplateBinding Padding}"
+                                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </ControlTemplate>
+                    </Setter>
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:ChatMessageViewModel">
+                    
+                    <!-- Contenedor de Alineación del Mensaje -->
+                    <DockPanel LastChildFill="False"
+                                Margin="0,2"
+                                IsVisible="{Binding IsVisible}"
+                                HorizontalAlignment="{Binding Role, Converter={StaticResource RoleToAlignmentConverter}}">
+                        
+                        <!-- Botones de Acción Rápidos (Solo visibles para el Usuario) -->
+                        <StackPanel DockPanel.Dock="Left"
+                                    Orientation="Horizontal" 
+                                    IsVisible="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Usuario}"
+                                    VerticalAlignment="Top"
+                                    Spacing="4"
+                                    Margin="0,5,8,0">
+                            
+                            <Button Classes="imageButton historyActionButton" 
+                                    Command="{Binding EditCommand}"
+                                    ToolTip.Tip="Editar mensaje">
+                                <Image Width="14" Height="14">
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/edit.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+
+                            <Button Classes="imageButton historyActionButton" 
+                                    Command="{Binding CopyCommand}"
+                                    ToolTip.Tip="Copiar texto">
+                                <Image Width="14" Height="14">
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/copy.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Control de Navegación de Versiones (Paginación de mensajes editados) -->
+                        <StackPanel Orientation="Horizontal" 
+                                    IsVisible="{Binding CanNavigateVersions}"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,0,0,5">
+                            <Button Classes="imageButton" Command="{Binding PreviousVersionCommand}" Padding="1">
+                                <TextBlock Text="&lt;" FontSize="9" FontWeight="Bold"/>
+                            </Button>
+                            <TextBlock Text="{Binding VersionDisplay}" FontSize="9" VerticalAlignment="Center" Margin="4,0"/>
+                            <Button Classes="imageButton" Command="{Binding NextVersionCommand}" Padding="1">
+                                <TextBlock Text="&gt;" FontSize="9" FontWeight="Bold"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- BURBUJA DE MENSAJE -->
+                        <Border DockPanel.Dock="Right"
+                                Padding="12"
+                                CornerRadius="12"
+                                Classes.user="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Usuario}"
+                                Classes.asistente="{Binding Role, Converter={StaticResource StringEqualsConverter}, ConverterParameter=Asistente}">
+
+                            <Panel>
+                                <!-- MODO LECTURA: Texto plano para usuario, Markdown para el asistente -->
+                                <StackPanel IsVisible="{Binding !IsEditing}">
+                                    <TextBox Text="{Binding Content}"
+                                                IsVisible="{Binding !IsAssistantRole}"
+                                                IsReadOnly="True"
+                                                BorderThickness="0"
+                                                Background="Transparent"
+                                                Foreground="{StaticResource TextPrimaryBrush}" 
+                                                TextWrapping="Wrap"
+                                                AcceptsReturn="True"/>
+
+                                    <views:MarkdownView Markdown="{Binding Content}"
+                                                        IsVisible="{Binding IsAssistantRole}"/>
+                                    
+                                    <!-- Visor de Imagen Generada -->
+                                    <Image Source="{Binding GeneratedImageBitmap}" 
+                                            IsVisible="{Binding IsImageGenerated}"
+                                            MaxWidth="500" 
+                                            Margin="0,10,0,0"
+                                            Stretch="Uniform"/>
+                                </StackPanel>
+
+                                <!-- MODO EDICIÓN: Visible cuando el usuario activa el comando de edición -->
+                                <StackPanel IsVisible="{Binding IsEditing}" Spacing="8" MinWidth="350">
+                                    <TextBox Name="EditMsgTextBox" 
+                                            Text="{Binding EditText, Mode=TwoWay}"
+                                            AcceptsReturn="True"
+                                            TextWrapping="Wrap"
+                                            Classes="inputEditor"
+                                            Background="#1AFFFFFF"
+                                            Padding="8"
+                                            KeyDown="EditMsgTextBox_KeyDown"/>
+                                    
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                                        <Button Content="{DynamicResource Chat_Btn_Cancel}" 
+                                                Command="{Binding CancelEditCommand}" 
+                                                Classes="linkButton"/>
+                                        
+                                        <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).ChatVM.CommitEditCommand}"
+                                                CommandParameter="{Binding}"
+                                                Classes="imageButton inputAreaButton">
+                                            <Image Width="18" Height="18">
+                                                <Image.Source>
+                                                    <svg:SvgImage Source="avares://Ada/Resources/Icons/send.svg" Css="* { fill: #8da9b6; }"/>
+                                                </Image.Source>
+                                            </Image>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Panel>
+                        </Border>
+                    </DockPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- 
+            ÁREA DE ENTRADA DEL USUARIO 
+            Contiene la lista de archivos temporales y el cuadro de texto principal con sus controles.
+        -->
+        <StackPanel Grid.Row="1" Spacing="8" Margin="0,10">
+            
+            <!-- Lista de Archivos Adjuntos Pendientes -->
+            <ItemsControl ItemsSource="{Binding ChatVM.TemporaryFiles}" 
+                        IsVisible="{Binding ChatVM.TemporaryFiles.Count, Converter={StaticResource CountToVisibilityConverter}}" 
+                        Height="45">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:AttachedFileViewModel">
+                        <Border Background="#1AFFFFFF" Padding="6" Margin="2" CornerRadius="8" MaxWidth="200">
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <!-- Icono o Preview -->
+                                <Panel Grid.Column="0" Width="24" Height="24" Margin="0,0,8,0">
+                                    <Image Source="{Binding ImagePreviewSource}" 
+                                            IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                    <Image IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNull}">
+                                        <Image.Source>
+                                            <svg:SvgImage Source="{Binding IconPath}" Css="* { fill: #8da9b6; }"/>
+                                        </Image.Source>
+                                    </Image>
+                                </Panel>
+                                <!-- Nombre del Archivo -->
+                                <TextBlock Grid.Column="1" 
+                                            Text="{Binding FileName}" 
+                                            VerticalAlignment="Center" 
+                                            FontSize="12"
+                                            TextTrimming="CharacterEllipsis"/>
+                                <!-- Botón Eliminar -->
+                                <Button Grid.Column="2" 
+                                        Classes="imageButton historyActionButton" 
+                                        Command="{Binding RemoveCommand}" 
+                                        CommandParameter="{Binding}">
+                                    <Image Width="12" Height="12">
+                                        <Image.Source><svg:SvgImage Source="avares://Ada/Resources/Icons/delete.svg"/></Image.Source>
+                                    </Image>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="8"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+
+            <!-- Cuadro de Entrada Principal -->
+            <Border Classes="inputBorder">
+                <Grid RowDefinitions="*, Auto">
+                    <!-- Editor de Texto -->
+                    <TextBox Name="UserInputEditor" 
+                            Grid.Row="0" 
+                            Text="{Binding ChatVM.UserInputText, Mode=TwoWay}" 
+                            Classes="inputEditor" 
+                            Watermark="{DynamicResource Chat_Watermark}"/>
+                    
+                    <!-- Barra de Herramientas del Editor -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*, Auto" Margin="0,5,0,0">
+                        <!-- Lado Izquierdo: Herramientas y Modos -->
+                        <StackPanel Grid.Column="0" Spacing="4" Orientation="Horizontal">
+                            <Button Classes="imageButton inputAreaButton" ToolTip.Tip="{DynamicResource Tip_Attach}" Command="{Binding ChatVM.AttachFileCommand}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/attach.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                            <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="{DynamicResource Tip_Web}" Command="{Binding ChatVM.ToggleWebSearchModeCommand}" Classes.active="{Binding ChatVM.IsWebSearchModeActive}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/mode_search.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                            <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="{DynamicResource Tip_Quick}" Command="{Binding ChatVM.ToggleQuickModeCommand}" Classes.active="{Binding ChatVM.IsQuickModeActive}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/mode_quick.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                            <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="{DynamicResource Tip_Reasoning}" Command="{Binding ChatVM.ToggleReasoningModeCommand}" Classes.active="{Binding ChatVM.IsReasoningModeActive}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/mode_reasoning.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                            <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="{DynamicResource Tip_Image}" Command="{Binding ChatVM.ToggleImageModeCommand}" Classes.active="{Binding ChatVM.IsImageModeActive}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/mode_image.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Lado Derecho: Acciones de Envío -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <Button Classes="imageButton inputAreaButton toggleButton" ToolTip.Tip="{DynamicResource Tip_Mic}" Command="{Binding ChatVM.ToggleVoiceInputCommand}" Classes.active="{Binding ChatVM.IsListening}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/mic.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                            <Button Classes="imageButton inputAreaButton" ToolTip.Tip="{DynamicResource Tip_Send}" Command="{Binding ChatVM.SendMessageCommand}" IsEnabled="{Binding ChatVM.IsUserInputEnabled}">
+                                <Image>
+                                    <Image.Source>
+                                        <svg:SvgImage Source="avares://Ada/Resources/Icons/send.svg" Css="* { fill: #8da9b6; }"/>
+                                    </Image.Source>
+                                </Image>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

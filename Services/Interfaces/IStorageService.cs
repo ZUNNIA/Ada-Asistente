@@ -2,21 +2,27 @@ using Avalonia.Platform.Storage;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace AsistenteVirtual.Services
+namespace AsistenteVirtual.Services.Interfaces
 {
     /// <summary>
-    /// Define un contrato para un servicio que abstrae las interacciones con el sistema de archivos,
-    /// como abrir diálogos para seleccionar archivos. Esto mantiene el ViewModel desacoplado de la Vista.
+    /// Abstracción para las interacciones con el sistema de archivos del sistema operativo.
     /// </summary>
+    /// <remarks>
+    /// Permite a los ViewModels solicitar archivos o carpetas sin depender directamente 
+    /// de la ventana principal o el SDK de Avalonia.
+    /// </remarks>
     public interface IStorageService
     {
         /// <summary>
-        /// Abre un diálogo del sistema operativo para que el usuario seleccione uno o más archivos.
+        /// Abre el selector de archivos del sistema permitiendo selección múltiple.
         /// </summary>
-        /// <returns>
-        /// Una lista de solo lectura de objetos IStorageFile que representan los archivos seleccionados,
-        /// o null si el usuario cancela la operación.
-        /// </returns>
+        /// <returns>Lista de archivos seleccionados o null si se canceló.</returns>
         Task<IReadOnlyList<IStorageFile>?> PickMultipleFilesAsync();
+
+        /// <summary>
+        /// Abre el selector de carpetas del sistema.
+        /// </summary>
+        /// <returns>La carpeta seleccionada o null.</returns>
+        Task<IStorageFolder?> PickFolderAsync();
     }
 }

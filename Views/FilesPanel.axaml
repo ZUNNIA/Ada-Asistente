@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:vm="using:AsistenteVirtual.ViewModels"
+            xmlns:svg="using:Avalonia.Svg.Skia"
+            mc:Ignorable="d" d:DesignWidth="250" d:DesignHeight="450"
+            x:Class="AsistenteVirtual.Views.FilesPanel"
+            x:DataType="vm:MainViewModel">
+
+    <!-- 
+        PANEL LATERAL DE ARCHIVOS 
+        Este panel muestra la lista de archivos vinculados a la conversación activa.
+        Utiliza el convertidor global 'NullToVisibilityConverter' definido en Converters.axaml.
+    -->
+    <Border Name="FilesPanelBorder" 
+            Width="230" 
+            HorizontalAlignment="Right"
+            Background="{StaticResource BgSurfaceBrush}" 
+            BorderBrush="{StaticResource BorderBrush}" 
+            BorderThickness="1" 
+            CornerRadius="15"
+            Padding="5" 
+            Margin="0,10,10,10" 
+            ZIndex="10">
+        
+        <Grid RowDefinitions="Auto, *">
+            
+            <!-- Encabezado del Panel -->
+            <Label Grid.Row="0" 
+                    Classes="panelTitle" 
+                    Content="{DynamicResource Panel_Files_Title}" 
+                    HorizontalAlignment="Center"
+                    Margin="0,5,0,10"/>
+
+            <!-- Lista de Archivos con Scroll Independiente -->
+            <ScrollViewer Grid.Row="1" 
+                            Margin="5,0"
+                            HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                
+                <ItemsControl ItemsSource="{Binding ChatVM.AttachedFiles}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:AttachedFileViewModel">
+                            
+                            <!-- Ítem individual de archivo -->
+                            <Border Background="Transparent" 
+                                    Padding="6" 
+                                    Margin="0,2" 
+                                    CornerRadius="8" 
+                                    BorderThickness="0"
+                                    Classes="historyItem"> <!-- Reutiliza efectos de hover del historial -->
+                                
+                                <Grid ColumnDefinitions="Auto, *, Auto">
+                                    
+                                    <!-- ÁREA DE ICONO / PREVIEW -->
+                                    <Panel Grid.Column="0" Width="24" Height="24" Margin="0,0,10,0">
+                                        
+                                        <!-- Muestra la miniatura si el servicio logró generarla (ej. imágenes subidas) -->
+                                        <Image Source="{Binding ImagePreviewSource}"
+                                                Stretch="UniformToFill"
+                                                IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                        
+                                        <!-- Fallback: Muestra el icono SVG representativo del tipo de archivo -->
+                                        <Image IsVisible="{Binding ImagePreviewSource, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=VisibleIfNull}">
+                                            <Image.Source>
+                                                <svg:SvgImage Source="{Binding IconPath}" Css="* { fill: #8da9b6; }"/>
+                                            </Image.Source>
+                                        </Image>
+                                    </Panel>
+
+                                    <!-- INFORMACIÓN DEL ARCHIVO -->
+                                    <TextBlock Grid.Column="1" 
+                                                Text="{Binding FileName}" 
+                                                Foreground="{StaticResource TextPrimaryBrush}" 
+                                                VerticalAlignment="Center" 
+                                                FontSize="13"
+                                                TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- ACCIONES -->
+                                    <Button Grid.Column="2" 
+                                            Classes="imageButton historyActionButton" 
+                                            Command="{Binding RemoveCommand}" 
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="Eliminar archivo de la conversación">
+                                        <Image Width="14" Height="14">
+                                            <Image.Source>
+                                                <svg:SvgImage Source="avares://Ada/Resources/Icons/delete.svg" Css="* { fill: #8da9b6; }"/>
+                                            </Image.Source>
+                                        </Image>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>
